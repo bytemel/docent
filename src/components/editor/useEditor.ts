@@ -36,8 +36,8 @@ import {
   splitSegment,
   waypoints,
 } from "./ops";
-import type { LegStatus } from "./RouteTab";
-import type { Pending, RouteHit, Tab, Tool, ViaRef } from "./types";
+import type { LegStatus } from "./RouteStage";
+import type { Pending, RouteHit, Stage, Tool, ViaRef } from "./types";
 import { initialState, type InitState, type Phase } from "./init";
 
 function routedKeys(doc: RouteDoc): Record<string, string> {
@@ -48,7 +48,7 @@ function routedKeys(doc: RouteDoc): Record<string, string> {
 
 function initial(): InitState {
   if (typeof window === "undefined")
-    return { doc: emptyDoc(), phase: "setup", draft: null, saveArmed: true, badLink: false, pending: { start: null, end: null } };
+    return { doc: emptyDoc(), phase: "setup", draft: null, saveArmed: true, badLink: false, pending: { start: null, end: null }, ask: false };
   return initialState(window.location.search, loadDraft, decodeDoc);
 }
 
@@ -67,7 +67,8 @@ export function useEditor() {
   const [pending, setPending] = useState<Pending>(init.pending);
   const [naming, setNaming] = useState<string[]>([]);
   const [tool, setTool] = useState<Tool>({ kind: "none" });
-  const [tab, setTab] = useState<Tab>("route");
+  const [stage, setStage] = useState<Stage>(init.phase === "edit" ? "route" : "where");
+  const [asking, setAsking] = useState(init.ask);
   const [selectedVia, setSelectedVia] = useState<ViaRef | null>(null);
   const [draftLandmark, setDraftLandmark] = useState<LngLat | null>(null);
   const [focusStop, setFocusStop] = useState<number | null>(null);
@@ -104,7 +105,7 @@ export function useEditor() {
 
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
-    if (!sp.has("d") && !sp.has("from")) return;
+    if (!sp.has("d") && !sp.has("from") && !sp.has("ask")) return;
     try {
       window.history.replaceState(null, "", window.location.pathname);
     } catch {
@@ -315,7 +316,7 @@ export function useEditor() {
     setErrors({});
     setPhase("edit");
     setSaveArmed(true);
-    setTab("route");
+    setStage("route");
     fitAfterRoute.current = true;
     setFitTick((n) => n + 1);
   }
@@ -361,11 +362,11 @@ export function useEditor() {
         const first = res.segments[idx];
         if (seg.drawn || routed[seg.id] === segKey(seg)) setRouted((m) => ({ ...m, [first.id]: segKey(first) }));
         setFocusStop(res.stopIndex);
-        setTab("route");
+        setStage("route");
         setTool({ kind: "none" });
       } else if (tool.kind === "landmark") {
         setDraftLandmark(p);
-        setTab("landmarks");
+        setStage("directions");
         setTool({ kind: "none" });
       } else {
         setSelectedVia(null);
@@ -404,6 +405,7 @@ export function useEditor() {
       if (!init.draft) return;
       setHist(createHistory(init.draft));
       setRouted(routedKeys(init.draft));
+      setStage("route");
       setSaveArmed(true);
       setPhase("edit");
       setFitTick((n) => n + 1);
@@ -414,6 +416,7 @@ export function useEditor() {
       setHist(createHistory(emptyDoc()));
       setPending({ start: null, end: null });
       setPhase("setup");
+      setStage("where");
     },
     placePoint,
     resetPending(which: "start" | "end") {
@@ -497,7 +500,8 @@ export function useEditor() {
     },
     undo: doUndo,
     redo: doRedo,
-    setTab,
+    setStage,
+    setAsking,
     clearTransient,
   };
 
@@ -509,7 +513,8 @@ export function useEditor() {
     pending,
     naming,
     tool,
-    tab,
+    stage,
+    asking,
     selectedVia,
     draftLandmark,
     focusStop,

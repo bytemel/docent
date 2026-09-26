@@ -7,6 +7,7 @@ import type { Padding } from "./types";
 export interface MapApi {
   getCenter(): [number, number];
   fit(padding: Padding): void;
+  snapshot(padding: Padding): Promise<string | null>;
   flyTo(p: [number, number], padding: Padding): void;
   setBase(padding: Padding): void;
 }
@@ -26,7 +27,7 @@ export default function EditorMap({ handlers, onReady, ...view }: Props) {
     const init = first.current;
     const c = new MapController(box.current, init.view, init.handlers);
     ctl.current = c;
-    init.onReady({ getCenter: () => c.getCenter(), fit: (p) => c.fit(p), flyTo: (p, pad) => c.flyTo(p, pad), setBase: (p) => c.setBase(p) });
+    init.onReady({ getCenter: () => c.getCenter(), fit: (p) => c.fit(p), flyTo: (p, pad) => c.flyTo(p, pad), setBase: (p) => c.setBase(p), snapshot: (p) => c.snapshot(p) });
     return () => {
       init.onReady(null);
       ctl.current = null;

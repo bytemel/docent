@@ -13,6 +13,7 @@ export interface InitState {
   saveArmed: boolean;
   badLink: boolean;
   pending: Pending;
+  ask: boolean;
 }
 
 export function normalise(d: RouteDoc): RouteDoc {
@@ -30,6 +31,15 @@ export function initialState(
   loadDraft: () => unknown,
   decode: (encoded: string) => unknown,
 ): InitState {
+  const ask = new URLSearchParams(search).get("ask") === "1";
+  return { ...baseState(search, loadDraft, decode), ask };
+}
+
+function baseState(
+  search: string,
+  loadDraft: () => unknown,
+  decode: (encoded: string) => unknown,
+): Omit<InitState, "ask"> {
   const sp = new URLSearchParams(search);
   const d = sp.get("d");
   const none: Pending = { start: null, end: null };
