@@ -246,7 +246,7 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
           </div>
         <button
           type="button"
-          className="btn btn-icon absolute bottom-3 left-3 z-10 shadow-float"
+          className="btn btn-icon absolute left-3 top-3 z-10 shadow-float"
           aria-label={playing ? PLAYER.pause : PLAYER.play}
           onClick={() => engRef.current?.toggle()}
         >
@@ -310,7 +310,7 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
             </div>
           ) : null}
           {note ? (
-            <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-10 flex">
+            <div className="pointer-events-none absolute left-3 right-3 top-16 z-10 flex lg:top-3">
               <p role="status" className="panel px-3 py-2 text-sm text-ink-2">
                 {PLAYER.switchedLighter}
               </p>

@@ -41,6 +41,11 @@ export class ThreeRenderer implements PropRenderer {
   private removed = false;
   private layer: CustomLayerInterface;
   failed = false;
+  private screen = 1;
+  private onResize = () => {
+    const c = this.map.getContainer();
+    this.screen = Math.min(1.6, Math.max(1, Math.min(c.clientWidth, c.clientHeight) / 450));
+  };
 
   constructor(map: MLMap, tl: Timeline, walker: Walker, dark: boolean, onFail: () => void) {
     this.map = map;
@@ -87,6 +92,8 @@ export class ThreeRenderer implements PropRenderer {
       onRemove: () => this.disposeGl(),
     };
     map.addLayer(this.layer);
+    this.onResize();
+    map.on("resize", this.onResize);
   }
 
   private toScene(lng: number, lat: number, out: Vector3) {
@@ -111,7 +118,7 @@ export class ThreeRenderer implements PropRenderer {
     const lz = -Math.sin(b);
 
     const z = this.map.getZoom();
-    const zm = Math.min(8, Math.max(0.35, Math.pow(2, REF_ZOOM - z)));
+    const zm = Math.min(8, Math.max(0.35, Math.pow(2, REF_ZOOM - z))) * this.screen;
     const kerb = KERB_M * zm;
     for (const v of VEHICLES) {
       const g = this.props.vehicles[v];
@@ -170,6 +177,7 @@ export class ThreeRenderer implements PropRenderer {
   destroy() {
     if (this.removed) return;
     this.removed = true;
+    this.map.off("resize", this.onResize);
     try {
       if (this.map.getLayer(LAYER_ID)) this.map.removeLayer(LAYER_ID);
       else this.disposeGl();

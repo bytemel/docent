@@ -91,6 +91,7 @@ export const PROP_CSS = `
 .dp-veh>svg{display:none}
 .dp-veh>svg.dp-on{display:block}
 .dp-walker-svg{display:block}
+.dp-dot{position:absolute;left:-11px;top:-11px;width:22px;height:22px;border-radius:999px;border:3px solid;box-shadow:0 0 0 7px color-mix(in srgb,var(--dp-halo) 25%,transparent)}
 .dp-disc{position:absolute;left:-24px;top:-24px;width:48px;height:48px;border-radius:999px;opacity:.3}
 .dp-arm-a,.dp-arm-b{transform-box:view-box;transform-origin:18px 17px}
 .dp-leg-a,.dp-leg-b{transform-box:view-box}

@@ -96,7 +96,7 @@ export default function Controls({
             step={0.05}
             defaultValue={0}
             aria-label={PLAYER.seek}
-            className="h-7 w-full cursor-pointer accent-accent"
+            className="h-11 w-full cursor-pointer accent-accent"
             onChange={(e) => onSeek(Number(e.currentTarget.value))}
             onPointerDown={(e) => {
               e.currentTarget.setPointerCapture(e.pointerId);
@@ -137,9 +137,14 @@ export default function Controls({
             </button>
           ))}
         </div>
-        <button type="button" className="chip min-h-11" onClick={onWhole}>
-          <CornersOut size={16} weight="bold" aria-hidden="true" />
-          {PLAYER.showWhole}
+        <button
+          type="button"
+          className="chip min-h-11 w-11 justify-center px-0"
+          aria-label={PLAYER.showWhole}
+          title={PLAYER.showWhole}
+          onClick={onWhole}
+        >
+          <CornersOut size={18} weight="bold" aria-hidden="true" />
         </button>
         {showFollow ? (
           <button type="button" className="chip min-h-11" onClick={onFollow}>

@@ -223,7 +223,7 @@ export class LiveLocation {
   private addLayers() {
     if (this.layersAdded) return;
     const map = this.map;
-    const accent = cssVar("--accent", "#d9480f");
+    const accent = cssVar("--accent", "#c2410c");
     const surface = cssVar("--surface", "#ffffff");
     const ink = cssVar("--ink", "#18181b");
     map.addSource(GUIDE_SRC, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
