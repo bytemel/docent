@@ -7,9 +7,9 @@
   --surface-2: #efefec;
   --ink: #18181b;
   --ink-2: #52525b;
-  --ink-3: #71717a;
+  --ink-3: #68686f;
   --line: #e2e2de;
-  --accent: #d9480f;
+  --accent: #c2410c;
   --accent-ink: #ffffff;
   --accent-soft: #fbe6dc;
   --danger: #b42318;
@@ -109,8 +109,8 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 0.375rem;
-    min-height: 36px;
-    padding: 0 0.75rem;
+    min-height: 44px;
+    padding: 0 0.875rem;
     border-radius: 999px;
     border: 1px solid var(--line);
     background: var(--surface);
