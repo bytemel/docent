@@ -102,7 +102,7 @@ export class LiveLocation {
     this.legs = tl.legModes.map((mode, i) => ({ mode, startM: tl.legStartM[i], endM: tl.legEndM[i] }));
     this.arrowEl = document.createElement("div");
     this.arrowEl.innerHTML =
-      '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 1 L18 12 L12 9.5 L6 12 Z" style="fill:var(--accent);stroke:var(--surface);stroke-width:1.5"/></svg>';
+      '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 1 L18 12 L12 9.5 L6 12 Z" style="fill:var(--sign);stroke:var(--accent);stroke-width:1.5"/></svg>';
     document.addEventListener("visibilitychange", this.onVis);
     map.on("dragstart", this.onUserMove);
     map.on("zoomstart", this.onUserMove);
@@ -219,8 +219,8 @@ export class LiveLocation {
   private addLayers() {
     if (this.layersAdded) return;
     const map = this.map;
-    const accent = cssVar("--accent", "#c2410c");
-    const surface = cssVar("--surface", "#ffffff");
+    const accent = cssVar("--accent", "#ffc61a");
+    const sign = cssVar("--sign", "#101214");
     const ink = cssVar("--ink", "#18181b");
     map.addSource(GUIDE_SRC, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
     map.addLayer({
@@ -237,11 +237,11 @@ export class LiveLocation {
       source: SRC,
       paint: {
         "circle-radius": 0,
-        "circle-color": accent,
-        "circle-opacity": 0.14,
-        "circle-stroke-color": accent,
+        "circle-color": sign,
+        "circle-opacity": 0.1,
+        "circle-stroke-color": sign,
         "circle-stroke-width": 1,
-        "circle-stroke-opacity": 0.4,
+        "circle-stroke-opacity": 0.35,
         "circle-pitch-alignment": "map",
       },
     });
@@ -249,7 +249,7 @@ export class LiveLocation {
       id: "dp-me-dot",
       type: "circle",
       source: SRC,
-      paint: { "circle-radius": 8, "circle-color": accent, "circle-stroke-color": surface, "circle-stroke-width": 3 },
+      paint: { "circle-radius": 8, "circle-color": sign, "circle-stroke-color": accent, "circle-stroke-width": 3.5 },
     });
     this.layersAdded = true;
   }

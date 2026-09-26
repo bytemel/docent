@@ -1,8 +1,7 @@
-import { AmbientLight, Camera, DirectionalLight, Matrix4, Scene, Vector3, WebGLRenderer } from "three";
+import { Camera, HemisphereLight, DirectionalLight, Matrix4, Scene, Vector3, WebGLRenderer } from "three";
 import { MercatorCoordinate, type CustomLayerInterface, type Map as MLMap } from "maplibre-gl";
 import type { Timeline, TimelineSample } from "@/lib/timeline";
-import { MODES } from "@/lib/modes";
-import type { Mode, Walker } from "@/lib/types";
+import type { Walker } from "@/lib/types";
 import { buildProps, SCALE, type Props3D, type Vehicle } from "./props3d";
 import type { PropPose } from "./transfer";
 import type { PropRenderer } from "./renderers";
@@ -35,9 +34,11 @@ export class ThreeRenderer implements PropRenderer {
   private mainMatrix = new Matrix4();
   private heading = 0;
   private walkHeading = 0;
-  private walkPhase = 0;
+  private wheelAngle = 0;
+  private speed = 0;
+  private lastAt = 0;
+  private hasAt = false;
   private hasHeading = false;
-  private discMode: Mode | null = null;
   private removed = false;
   private layer: CustomLayerInterface;
   failed = false;
@@ -59,13 +60,13 @@ export class ThreeRenderer implements PropRenderer {
       .multiply(new Matrix4().makeRotationAxis(new Vector3(1, 0, 0), Math.PI / 2));
 
     this.props = buildProps(walker, dark);
-    this.scene.add(this.props.shadow, this.props.walker.root);
+    this.scene.add(this.props.contact, this.props.shadow, this.props.walkerRoot);
     for (const v of VEHICLES) {
-      this.props.vehicles[v].visible = false;
-      this.scene.add(this.props.vehicles[v]);
+      this.props.vehicles[v].root.visible = false;
+      this.scene.add(this.props.vehicles[v].root);
     }
-    const amb = new AmbientLight(0xffffff, dark ? 1.5 : 1.8);
-    const sun = new DirectionalLight(0xffffff, dark ? 1.6 : 2.2);
+    const amb = new HemisphereLight(0xffffff, dark ? 0x30343a : 0xd9dcd5, dark ? 1.6 : 1.9);
+    const sun = new DirectionalLight(0xffffff, dark ? 2.2 : 2.6);
     sun.position.set(-40, 100, 60);
     this.scene.add(amb, sun);
 
@@ -118,36 +119,50 @@ export class ThreeRenderer implements PropRenderer {
     const lz = -Math.sin(b);
 
     const z = this.map.getZoom();
-    const zm = Math.min(8, Math.max(0.35, Math.pow(2, REF_ZOOM - z))) * this.screen;
+    const zm = Math.min(3, Math.max(0.35, Math.pow(2, REF_ZOOM - z))) * this.screen;
     const kerb = KERB_M * zm;
+    const moved = this.hasAt ? Math.abs(s.atM - this.lastAt) : 0;
+    this.lastAt = s.atM;
+    this.hasAt = true;
+    const instant = dt > 0 ? Math.min(400, moved / dt) : 0;
+    this.speed += (instant - this.speed) * (1 - Math.exp(-dt / 0.2));
+
     for (const v of VEHICLES) {
-      const g = this.props.vehicles[v];
+      const rig = this.props.vehicles[v];
+      const g = rig.root;
       const on = pose.vehicle === v && pose.vehicleAlpha > 0.02;
       g.visible = on;
       if (!on) continue;
       const off = pose.vehicleOffset * kerb;
+      const scale = SCALE[v] * zm;
       g.position.set(this.tmp.x + lx * off, 0, this.tmp.z + lz * off);
       g.rotation.y = -this.heading * toRad;
-      g.scale.setScalar(SCALE[v] * zm * (0.55 + 0.45 * pose.vehicleAlpha));
+      g.scale.setScalar(scale * (0.55 + 0.45 * pose.vehicleAlpha));
+      const spin = moved / (rig.wheelR * scale);
+      this.wheelAngle = (this.wheelAngle - spin) % (Math.PI * 2);
+      for (const wheel of rig.wheels) wheel.rotation.x = this.wheelAngle;
+      if (rig.crank) {
+        rig.crank.rotation.x = this.wheelAngle * 0.5;
+        rig.rider?.setCrank(-this.wheelAngle * 0.5);
+      }
+      if (playing) rig.rider?.update(dt, 0, false);
     }
 
-    const w = this.props.walker;
-    w.root.visible = pose.walker && pose.walkerAlpha > 0.02;
-    if (w.root.visible) {
+    const w = this.props.walkerRoot;
+    w.visible = pose.walker && pose.walkerAlpha > 0.02;
+    if (w.visible) {
       const off = pose.walkerOffset * kerb;
-      w.root.position.set(this.tmp.x + lx * off, 0, this.tmp.z + lz * off);
-      w.root.rotation.y = -this.walkHeading * toRad;
-      w.root.scale.setScalar(SCALE.walker * zm * pose.walkerScale * (0.5 + 0.5 * pose.walkerAlpha));
-      if (pose.walkerMoving && playing) this.walkPhase += dt * Math.PI * 2 * 1.9;
-      const swing = pose.walkerMoving ? Math.sin(this.walkPhase) : 0;
-      w.legA.rotation.x = swing * 0.6;
-      w.legB.rotation.x = -swing * 0.6;
-      w.armA.rotation.x = -swing * 0.5;
-      w.armB.rotation.x = swing * 0.5;
+      const scale = SCALE.walker * zm;
+      w.position.set(this.tmp.x + lx * off, 0, this.tmp.z + lz * off);
+      w.rotation.y = -this.walkHeading * toRad;
+      w.scale.setScalar(scale * pose.walkerScale * (0.5 + 0.5 * pose.walkerAlpha));
+      const moving = pose.walkerMoving && playing;
+      const figureSpeed = s.phase === "transfer" ? 1.4 : this.speed / scale;
+      if (playing) this.props.walker.update(dt, moving ? figureSpeed : 0, moving);
     }
 
     const shadow = this.props.shadow;
-    const main = pose.vehicle && pose.vehicle !== "walk" ? this.props.vehicles[pose.vehicle] : w.root;
+    const main = pose.vehicle && pose.vehicle !== "walk" ? this.props.vehicles[pose.vehicle].root : w;
     shadow.position.set(main.position.x, 0.3, main.position.z);
     const r = pose.vehicle
       ? pose.vehicle === "matatu"
@@ -157,11 +172,9 @@ export class ThreeRenderer implements PropRenderer {
           : DISC_M.two
       : DISC_M.walker;
     shadow.scale.setScalar(r * zm);
-    const mode = pose.vehicle ?? "walk";
-    if (mode !== this.discMode) {
-      this.discMode = mode;
-      shadow.material.color.set(MODES[mode].color);
-    }
+    const contact = this.props.contact;
+    contact.position.set(main.position.x, 0.5, main.position.z);
+    contact.scale.setScalar(r * zm * 0.62);
     this.map.triggerRepaint();
   }
 

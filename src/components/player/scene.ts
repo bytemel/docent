@@ -92,7 +92,7 @@ export class PlayerScene {
   constructor(init: SceneInit) {
     this.init = init;
     this.tl = init.tl;
-    this.casing = init.dark ? "#1b1b1e" : "#ffffff";
+    this.casing = init.dark ? "#0d0f11" : "#ffffff";
     this.near = init.pins.map(() => false);
     const b = bbox(this.tl.coords.length ? this.tl.coords : [[36.8219, -1.2921]]);
     this.bounds = new LngLatBounds([b[0], b[1]], [b[2], b[3]]);
@@ -116,6 +116,7 @@ export class PlayerScene {
     this.map.on("zoomstart", userMove);
     this.map.on("rotatestart", userMove);
     this.map.on("pitchstart", userMove);
+    init.container.querySelector<HTMLElement>(".maplibregl-ctrl-bottom-right")?.style.setProperty("bottom", "0", "important");
     this.map.on("zoom", () => this.updateLabels());
     this.map.on("webglcontextrestored", () => {
       this.map.once("idle", () => {
@@ -144,6 +145,9 @@ export class PlayerScene {
       this.map.once("load", () => {
         if (this.destroyed) return;
         this.loaded = true;
+        if (init.container.clientWidth < 640) {
+          init.container.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
+        }
         this.map.resize();
         this.addRoute();
         this.addMarkers();
@@ -174,11 +178,22 @@ export class PlayerScene {
     map.addSource("dp-done", { type: "geojson", data: this.partial });
     const layout = { "line-join": "round" as const, "line-cap": "round" as const };
     map.addLayer({
+      id: "dp-halo",
+      type: "line",
+      source: "dp-route",
+      layout,
+      paint: {
+        "line-color": this.init.dark ? "#f2f3f0" : "#101214",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 12, 8, 17, 16],
+        "line-opacity": this.init.dark ? 0.12 : 0.16,
+      },
+    });
+    map.addLayer({
       id: "dp-casing",
       type: "line",
       source: "dp-route",
       layout,
-      paint: { "line-color": this.casing, "line-width": ["interpolate", ["linear"], ["zoom"], 12, 6, 17, 13], "line-opacity": 0.9 },
+      paint: { "line-color": this.casing, "line-width": ["interpolate", ["linear"], ["zoom"], 12, 6, 17, 13], "line-opacity": 1 },
     });
     const width = ["interpolate", ["linear"], ["zoom"], 12, 3, 17, 7] as unknown as number;
     for (const dashed of [false, true]) {
@@ -190,7 +205,7 @@ export class PlayerScene {
         source: "dp-route",
         filter: ["==", ["get", "dashed"], dashed],
         layout,
-        paint: { "line-color": ["get", "color"], "line-width": width, "line-opacity": 0.5, ...dash },
+        paint: { "line-color": ["get", "color"], "line-width": width, "line-opacity": 0.72, ...dash },
       });
       map.addLayer({
         id: `dp-done-${sfx}`,
@@ -246,7 +261,7 @@ export class PlayerScene {
     } else if (tier === "2d") {
       this.renderer = new FlatRenderer(this.map, this.init.doc.walker);
     } else {
-      this.renderer = new BasicRenderer(this.map, this.casing);
+      this.renderer = new BasicRenderer(this.map);
     }
     if (tier === "basic") this.showWhole(false);
     else this.setFollow(true);
@@ -279,7 +294,7 @@ export class PlayerScene {
     this.map.stop();
     this.map.setPadding({ top: 0, bottom: 0, left: 0, right: 0 });
     const c = this.init.container;
-    const pad = Math.max(0, Math.min(48, Math.floor(Math.min(c.clientWidth, c.clientHeight) / 6)));
+    const pad = Math.max(0, Math.min(80, Math.floor(Math.min(c.clientWidth, c.clientHeight) / 6)));
     this.map.fitBounds(this.bounds, {
       padding: pad,
       maxZoom: 16,

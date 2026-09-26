@@ -61,7 +61,51 @@ export const PLAYER = {
   to: "To",
   keyboardHint: "Space plays or pauses. Arrow keys move 5 seconds.",
   preview: "Preview",
+  startDirections: "Start directions",
+  watchRoute: "Watch the route",
+  watchHint: "A short animation of the trip, with each step read out.",
+  routeFor: "Directions sent to you",
+  time: "Time",
+  about: "about",
+  overview: "Route overview",
+  repeatStep: "Tap to hear this step again",
+  then: "Then",
+  arrivalHeading: "You are there",
+  stepsCount: "steps",
+  animationSpeed: "Animation speed",
+  mapView: "Map view",
+  allSteps: "All steps",
+  backToOverview: "Back to overview",
+  followTraveller: "Follow the traveller",
+  stepsHeading: "The way, step by step",
+  viaModes: "By",
+  googleMaps: "Google Maps",
 } as const;
+
+export const GLYPH_LABEL: Record<string, string> = {
+  start: "Start",
+  arrive: "Arrive",
+  left: "Turn left",
+  right: "Turn right",
+  slightLeft: "Slight left",
+  slightRight: "Slight right",
+  uturn: "U-turn",
+  straight: "Go straight",
+  landmark: "Landmark",
+  walk: "Walk",
+  boda: "Boda",
+  matatu: "Matatu",
+  car: "Drive",
+  bike: "Cycle",
+};
+
+export function fromToLabel(from: string, to: string): string {
+  return `${from} to ${to}`;
+}
+
+export function aboutTime(duration: string): string {
+  return `about ${duration}`;
+}
 
 export function stepLabel(i: number, n: number): string {
   return `Step ${i + 1} of ${n}`;

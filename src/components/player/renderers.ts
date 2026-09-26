@@ -1,5 +1,4 @@
 import { Marker, type Map as MLMap } from "maplibre-gl";
-import { MODES } from "@/lib/modes";
 import type { Tier } from "@/lib/tier";
 import type { TimelineSample } from "@/lib/timeline";
 import type { Mode, Walker } from "@/lib/types";
@@ -16,15 +15,13 @@ export class BasicRenderer implements PropRenderer {
   readonly kind = "basic" as const;
   private marker: Marker;
   private dot: HTMLDivElement;
-  private lastMode: Mode | null = null;
 
-  constructor(map: MLMap, casing: string) {
+  constructor(map: MLMap) {
     const root = document.createElement("div");
     root.className = "dp-prop";
     root.style.zIndex = "3";
     this.dot = document.createElement("div");
     this.dot.className = "dp-dot";
-    this.dot.style.borderColor = casing;
     root.appendChild(this.dot);
     this.marker = new Marker({ element: root });
     this.marker.setLngLat([0, 0]).addTo(map);
@@ -32,11 +29,6 @@ export class BasicRenderer implements PropRenderer {
 
   update(s: TimelineSample) {
     this.marker.setLngLat(s.pos);
-    if (s.mode !== this.lastMode) {
-      this.lastMode = s.mode;
-      this.dot.style.background = MODES[s.mode].color;
-      this.dot.style.setProperty("--dp-halo", MODES[s.mode].color);
-    }
   }
 
   destroy() {
@@ -61,7 +53,6 @@ export class FlatRenderer implements PropRenderer {
   private facingLeft = false;
   private walking = false;
   private disc: HTMLDivElement;
-  private discMode: Mode | null = null;
 
   constructor(map: MLMap, walker: Walker) {
     this.map = map;
@@ -97,11 +88,6 @@ export class FlatRenderer implements PropRenderer {
     const lx = -Math.cos(r);
     const ly = -Math.sin(r);
 
-    const discMode = pose.vehicle ?? "walk";
-    if (discMode !== this.discMode) {
-      this.discMode = discMode;
-      this.disc.style.background = MODES[discMode].color;
-    }
     const want = pose.vehicle && pose.vehicleAlpha > 0.02 ? pose.vehicle : null;
     if (want !== this.shown) {
       if (this.shown) this.svgs.get(this.shown)?.classList.remove("dp-on");
