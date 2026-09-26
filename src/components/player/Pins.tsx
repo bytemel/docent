@@ -33,7 +33,7 @@ export const KIND_ICON: Record<LandmarkKind, Icon> = {
 export function PinContent({ kind, label }: { kind: LandmarkKind; label: string }) {
   const I = KIND_ICON[kind] ?? MapPin;
   return (
-    <div className="relative flex flex-col items-center">
+    <div className="relative flex flex-col items-center transition-opacity group-data-[clash=true]:pointer-events-none group-data-[clash=true]:opacity-0">
       <span className="flex h-8 w-8 items-center justify-center rounded-[10px] border-[1.5px] border-line bg-surface text-ink shadow-float transition-transform duration-300 group-data-[near=true]:scale-125 group-data-[near=true]:border-accent-ink group-data-[near=true]:bg-accent group-data-[near=true]:text-accent-ink">
         <I size={17} weight="bold" aria-hidden="true" />
       </span>

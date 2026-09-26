@@ -42,6 +42,23 @@ export function plateText(text: string): string {
   return rest ? rest.charAt(0).toUpperCase() + rest.slice(1) : text;
 }
 
+export function stepGapMeters(steps: Step[], i: number, totalM: number): number | null {
+  const s = steps[i];
+  if (!s || s.kind === "start" || i === 0) return null;
+  const at = s.kind === "arrive" ? totalM : s.atM;
+  let prev = 0;
+  for (let j = i - 1; j >= 0; j--) {
+    const p = steps[j];
+    const m = p.kind === "start" ? 0 : p.atM;
+    if (Number.isFinite(m)) {
+      prev = m;
+      break;
+    }
+  }
+  const d = at - prev;
+  return Number.isFinite(d) && d >= 10 ? d : null;
+}
+
 export function stepLegMeters(steps: Step[], i: number, totalM: number): number | null {
   const s = steps[i];
   if (!s || s.kind === "arrive") return null;

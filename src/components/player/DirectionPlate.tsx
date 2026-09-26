@@ -79,7 +79,7 @@ export default function DirectionPlate({
           onClick={onRepeat}
           title={PLAYER.repeatStep}
           aria-label={`${GLYPH_LABEL[glyph] ?? ""}. ${text} ${PLAYER.repeatStep}`}
-          className="flex min-w-0 flex-1 items-center gap-3 rounded-[14px] p-1 text-left"
+          className="flex min-w-0 flex-1 items-start gap-3 rounded-[14px] p-1 text-left"
         >
           <GlyphTile glyph={glyph} size="lg" />
           <span key={index} className="dp-plate-in flex min-w-0 flex-col gap-1">
@@ -88,7 +88,7 @@ export default function DirectionPlate({
             ) : (
               <span ref={distRef} className="num text-[28px] font-bold leading-none sm:text-[32px] empty:hidden" />
             )}
-            <span className="text-[19px] font-bold leading-tight text-balance sm:text-[21px]">{text}</span>
+            <span className="text-[19px] font-bold leading-tight text-pretty sm:text-[21px]">{text}</span>
           </span>
         </button>
         <VoiceToggle className="shrink-0 self-start border-transparent" />
@@ -96,7 +96,7 @@ export default function DirectionPlate({
       {next ? (
         <p className="flex min-w-0 items-baseline gap-2 px-1 text-sm text-ink-2">
           <span className="shrink-0 font-bold text-ink">{PLAYER.then}</span>
-          <span className="truncate">{plateText(next.text)}</span>
+          <span className="line-clamp-2 text-pretty">{plateText(next.text)}</span>
         </p>
       ) : null}
       <p className="sr-only" aria-live="polite" aria-atomic="true">

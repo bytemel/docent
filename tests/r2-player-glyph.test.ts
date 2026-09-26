@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { glyphFor, plateText, stepLegMeters, turnGlyph } from "@/components/player/glyph";
+import { glyphFor, plateText, stepGapMeters, stepLegMeters, turnGlyph } from "@/components/player/glyph";
 import { EXAMPLE_DOC } from "@/lib/example";
 import { buildTimeline } from "@/lib/timeline";
 
@@ -47,5 +47,16 @@ describe("stepLegMeters", () => {
     const steps = EXAMPLE_DOC.steps;
     expect(stepLegMeters(steps, 0, tl.totalM)).toBeCloseTo(steps[1].atM, 6);
     expect(stepLegMeters(steps, steps.length - 1, tl.totalM)).toBeNull();
+  });
+});
+
+describe("stepGapMeters", () => {
+  it("gives the distance travelled since the previous step, and none for the start", () => {
+    const tl = buildTimeline(EXAMPLE_DOC);
+    const steps = EXAMPLE_DOC.steps;
+    expect(stepGapMeters(steps, 0, tl.totalM)).toBeNull();
+    expect(stepGapMeters(steps, 1, tl.totalM)).toBeCloseTo(steps[1].atM, 6);
+    const last = steps.length - 1;
+    expect(stepGapMeters(steps, last, tl.totalM)).toBeCloseTo(tl.totalM - steps[last - 1].atM, 6);
   });
 });
