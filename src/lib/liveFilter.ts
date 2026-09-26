@@ -97,8 +97,12 @@ export function createLiveFilter(opts: FilterOptions = {}): LiveFilter {
         state = null;
       }
       rejects = 0;
+      const observed =
+        prev && state && fix.t > prev.t
+          ? Math.max(0, haversine([prev.lng, prev.lat], [fix.lng, fix.lat]) - fix.acc) / ((fix.t - prev.t) / 1000)
+          : 0;
       prev = fix;
-      state = smoothFix(state, fix);
+      state = smoothFix(state, fix.speed === null ? { ...fix, speed: observed } : fix);
       return { ...fix, lng: state.lng, lat: state.lat, acc: Math.sqrt(state.variance) };
     },
     reset() {
