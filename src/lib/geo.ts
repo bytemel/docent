@@ -145,7 +145,8 @@ export function routeCoords(segments: { geometry: LngLat[] }[]): LngLat[] {
 }
 
 export function formatDistance(m: number): string {
-  if (m < 1000) return `${Math.round(m / 10) * 10} m`;
+  const rounded = Math.round(m / 10) * 10;
+  if (rounded < 1000) return `${rounded} m`;
   return `${(m / 1000).toFixed(m < 10000 ? 1 : 0)} km`;
 }
 
