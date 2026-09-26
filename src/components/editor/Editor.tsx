@@ -25,6 +25,7 @@ import PreviewDialog from "./PreviewDialog";
 import { defaultTitle, waypoints } from "./ops";
 import { useEditor } from "./useEditor";
 import type { Padding, Tab } from "./types";
+import type { RouteDoc } from "@/lib/types";
 
 const TABS: Tab[] = ["route", "landmarks", "steps", "details"];
 
@@ -33,7 +34,7 @@ export default function Editor() {
   const { actions: a } = e;
   const mapApi = useRef<MapApi | null>(null);
   const sheetRef = useRef<HTMLElement>(null);
-  const [preview, setPreview] = useState(false);
+  const [preview, setPreview] = useState<RouteDoc | null>(null);
   const [share, setShare] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
   const [mapLoading, setMapLoading] = useState(true);
@@ -81,7 +82,7 @@ export default function Editor() {
   const openAsk = useCallback(() => setAsking(true), []);
   const closeAsk = useCallback(() => setAsking(false), []);
   const flyTo = useCallback((p: [number, number]) => mapApi.current?.flyTo(p, padding()), [padding]);
-  const closePreview = useCallback(() => setPreview(false), []);
+  const closePreview = useCallback(() => setPreview(null), []);
   const editing = e.phase === "edit";
   const tool = e.tool;
   const hint =
@@ -98,7 +99,7 @@ export default function Editor() {
 
   const actionsRow = (
     <>
-      <button type="button" className="btn" onClick={() => setPreview(true)} disabled={!editing}>
+      <button type="button" className="btn" onClick={() => setPreview(e.fullDoc)} disabled={!editing}>
         <PlayIcon size={18} aria-hidden />
         {t.preview}
       </button>
@@ -312,7 +313,7 @@ export default function Editor() {
       ) : null}
       {share ? <ShareSheet url={share} title={e.fullDoc.title} onClose={closeShare} /> : null}
       {preview ? (
-        <PreviewDialog doc={e.fullDoc} onClose={closePreview} />
+        <PreviewDialog doc={preview} onClose={closePreview} />
       ) : null}
     </div>
   );

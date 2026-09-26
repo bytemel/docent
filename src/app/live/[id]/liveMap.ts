@@ -1,4 +1,4 @@
-import { LngLatBounds, Map as MLMap, Marker, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
+import { LngLatBounds, Map as MLMap, Marker, setWorkerUrl, getVersion, type GeoJSONSource } from "maplibre-gl";
 import { bbox } from "@/lib/geo";
 import { FILTER } from "@/lib/liveFilter";
 import { ensureMapWorker, mapStyleUrl } from "@/lib/map";
@@ -85,7 +85,7 @@ export class LiveMap {
     const b = bbox(coords);
     this.bounds = new LngLatBounds([b[0], b[1]], [b[2], b[3]]);
     this.accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#d9480f";
-    ensureMapWorker({ setWorkerUrl });
+    ensureMapWorker({ setWorkerUrl, getVersion });
     this.map = new MLMap({
       container: init.container,
       style: mapStyleUrl(init.dark),

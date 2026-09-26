@@ -13,13 +13,18 @@ export default function RouteExtras({ title, d, distance, line }: { title: strin
     let alive = true;
     let hide: ReturnType<typeof setTimeout> | undefined;
     saveRoute({ title, d, distance });
-    cacheRouteForOffline(d, line)
-      .then(() => isRouteCachedOffline(d))
-      .then((cached) => {
-        if (!alive || !cached) return;
+    const check = async (tries: number) => {
+      if (!alive) return;
+      if (await isRouteCachedOffline(d, line)) {
+        if (!alive) return;
         setOffline(true);
         hide = setTimeout(() => setOffline(false), 5000);
-      })
+      } else if (tries > 0) {
+        hide = setTimeout(() => void check(tries - 1), 3000);
+      }
+    };
+    cacheRouteForOffline(d, line)
+      .then(() => check(10))
       .catch(() => {});
     return () => {
       alive = false;

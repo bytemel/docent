@@ -1,11 +1,11 @@
 import { mapStyleUrl, TILEJSON_URL } from "./map";
 import { decodePolyline } from "./polyline";
-import { tilesForRoute } from "./tiles";
+import { lngLatToTile, tilesForRoute } from "./tiles";
 
 export const SW_URL = "/sw.js";
 export const PAGES_CACHE = "docent-pages-v1";
 export const MAP_CACHE = "docent-map-v1";
-export const PREFETCH_ZOOMS = [12, 13, 14, 15, 16];
+export const PREFETCH_ZOOMS = [12, 13, 14];
 export const PREFETCH_TILE_CAP = 150;
 const MAP_ORIGIN = "https://tiles.openfreemap.org";
 
@@ -78,29 +78,45 @@ async function mapUrls(line: string): Promise<string[]> {
   return urls;
 }
 
+const SHELL_PATHS = ["/_next/static/", "/maplibre/", "/icon.svg", "/manifest.webmanifest"];
+
+export function isShellAsset(url: string, origin: string): boolean {
+  if (url.includes("_rsc=")) return false;
+  if (url.startsWith(MAP_ORIGIN)) return true;
+  return SHELL_PATHS.some((p) => url.startsWith(origin + p));
+}
+
 function shellAssets(): string[] {
   return performance
     .getEntriesByType("resource")
     .map((e) => e.name)
-    .filter((u) => u.startsWith(location.origin) || u.startsWith(MAP_ORIGIN));
+    .filter((u) => isShellAsset(u, location.origin));
 }
 
 export async function cacheRouteForOffline(d: string, line: string): Promise<void> {
   const reg = await registerOffline();
   const worker = reg?.active;
   if (!worker) return;
-  worker.postMessage({ type: "docent:cache", urls: [routePageUrl(d, location.origin), ...shellAssets()] });
+  const page = routePageUrl(d, location.origin);
+  const pageCached = await caches.match(page, { cacheName: PAGES_CACHE, ignoreVary: true }).catch(() => undefined);
+  worker.postMessage({ type: "docent:cache", urls: pageCached ? shellAssets() : [page, ...shellAssets()] });
   if (!canPrefetch((navigator as Navigator & { connection?: NetworkInfo }).connection)) return;
   worker.postMessage({ type: "docent:cache", urls: await mapUrls(line) });
 }
 
-export async function isRouteCachedOffline(d: string): Promise<boolean> {
+export async function isRouteCachedOffline(d: string, line: string): Promise<boolean> {
   if (!offlineSupported()) return false;
   try {
     const page = await caches.match(routePageUrl(d, location.origin), { cacheName: PAGES_CACHE, ignoreVary: true });
     if (!page) return false;
+    const coords = decodePolyline(line, 2000);
+    if (!coords || coords.length < 2) return false;
     const map = await caches.open(MAP_CACHE);
-    return (await map.keys()).length > 0;
+    const urls = (await map.keys()).map((r) => r.url);
+    return [coords[0], coords[coords.length - 1]].every(([lng, lat]) => {
+      const [x, y] = lngLatToTile(lng, lat, 14);
+      return urls.some((u) => u.endsWith(`/14/${x}/${y}.pbf`));
+    });
   } catch {
     return false;
   }

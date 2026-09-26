@@ -1,4 +1,4 @@
-import { LngLatBounds, Map as MLMap, Marker, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
+import { LngLatBounds, Map as MLMap, Marker, setWorkerUrl, getVersion, type GeoJSONSource } from "maplibre-gl";
 import { bbox, haversine } from "@/lib/geo";
 import { ensureMapWorker, mapStyleUrl } from "@/lib/map";
 import { MODES } from "@/lib/modes";
@@ -96,7 +96,7 @@ export class PlayerScene {
     this.near = init.pins.map(() => false);
     const b = bbox(this.tl.coords.length ? this.tl.coords : [[36.8219, -1.2921]]);
     this.bounds = new LngLatBounds([b[0], b[1]], [b[2], b[3]]);
-    ensureMapWorker({ setWorkerUrl });
+    ensureMapWorker({ setWorkerUrl, getVersion });
     this.map = new MLMap({
       container: init.container,
       style: mapStyleUrl(init.dark),

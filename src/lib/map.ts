@@ -22,7 +22,10 @@ export function prefersReducedMotion(): boolean {
 
 export const MAP_WORKER_PATH = "/maplibre/maplibre-gl-worker.mjs";
 
-export function ensureMapWorker(ml: { setWorkerUrl: (url: string) => void }): void {
+export function ensureMapWorker(ml: { setWorkerUrl: (url: string) => void; getVersion?: () => string }): void {
   if (typeof window === "undefined") return;
-  ml.setWorkerUrl(new URL(MAP_WORKER_PATH, window.location.origin).toString());
+  const url = new URL(MAP_WORKER_PATH, window.location.origin);
+  const version = ml.getVersion?.();
+  if (version) url.searchParams.set("v", version);
+  ml.setWorkerUrl(url.toString());
 }
