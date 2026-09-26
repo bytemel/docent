@@ -169,7 +169,7 @@ export const t = {
     headline: (name: string) => (name ? `${name} wants to show you the way` : "Someone wants to show you the way"),
     lead: (name: string) =>
       `Send ${name || "them"} your location and they can make you a route with directions to follow.`,
-    privacy: "Your location only goes to the person you send it to. Docent does not keep it.",
+    privacy: "Docent does not store your location. It goes only in the message you choose to send. Map services see the area so they can draw the map.",
     shareButton: "Share where I am",
     locating: "Finding where you are...",
     accuracy: (m: number) => `Accurate to about ${m} m`,

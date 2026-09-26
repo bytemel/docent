@@ -1,4 +1,5 @@
-import { fail, fetchJson, limited, ok } from "@/lib/server/http";
+import { busy, fail, fetchJson, limited, ok } from "@/lib/server/http";
+import { spendBudget } from "@/lib/server/rateLimit";
 import { parseLatLng } from "@/lib/server/parse";
 import { parsePhotonReverse } from "@/lib/server/providers";
 
@@ -8,6 +9,7 @@ export async function GET(req: Request) {
   const params = new URL(req.url).searchParams;
   const at = parseLatLng(params.get("lat"), params.get("lng"));
   if (!at) return fail(400, "Send a valid lat and lng.");
+  if (!spendBudget("reverse", 6000)) return busy();
   const url = `https://photon.komoot.io/reverse?lat=${at.lat.toFixed(5)}&lon=${at.lng.toFixed(5)}&lang=en`;
   try {
     return ok(parsePhotonReverse(await fetchJson(url)));

@@ -1,4 +1,5 @@
-import { fail, fetchJson, limited, ok } from "@/lib/server/http";
+import { busy, CACHE_SHORT, fail, fetchJson, limited, ok } from "@/lib/server/http";
+import { spendBudget } from "@/lib/server/rateLimit";
 import { parseLatLng, parseQuery } from "@/lib/server/parse";
 import {
   mergeResults,
@@ -16,8 +17,8 @@ let nextNominatim = 0;
 async function nominatim(q: string): Promise<RankedResult[]> {
   const now = Date.now();
   const wait = Math.max(0, nextNominatim - now);
-  if (wait > 1000) return [];
-  nextNominatim = now + wait + 1000;
+  if (wait > 2000 || !spendBudget("nominatim", 500)) return [];
+  nextNominatim = now + wait + 2000;
   if (wait) await new Promise((r) => setTimeout(r, wait));
   return parseNominatim(await fetchJson(nominatimUrl(q)));
 }
@@ -39,17 +40,18 @@ export async function GET(req: Request) {
   const bias = hasBias ? parseLatLng(params.get("lat"), params.get("lng")) : { lat: NAIROBI[1], lng: NAIROBI[0] };
   if (!bias) return fail(400, "The map position is not valid.");
   const deep = params.get("deep") === "1";
+  if (!spendBudget("search", 6000)) return busy();
   const photonUrl =
     `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=6&lang=en` +
     `&lat=${bias.lat.toFixed(4)}&lon=${bias.lng.toFixed(4)}`;
   const key = process.env.ORS_API_KEY;
   const jobs: Promise<RankedResult[]>[] = [fetchJson(photonUrl).then(photonRanked)];
-  if (key) jobs.push(ors(q, bias, key));
+  if (key && spendBudget("ors-geocode", 900)) jobs.push(ors(q, bias, key));
   if (deep) jobs.push(nominatim(q));
   const settled = await Promise.allSettled(jobs);
   const lists = settled.map((s) => (s.status === "fulfilled" ? s.value : []));
-  if (settled.every((s) => s.status === "rejected")) {
-    return fail(502, "Search is not working right now. Please try again.");
-  }
-  return ok({ results: mergeResults(lists) });
+  const anyFailed = settled.some((s) => s.status === "rejected");
+  const results = mergeResults(lists);
+  if (anyFailed && results.length === 0) return fail(502, "Search is not working right now. Please try again.");
+  return ok({ results }, anyFailed ? CACHE_SHORT : undefined);
 }

@@ -1,4 +1,5 @@
-import { fail, fetchJson, limited, ok } from "@/lib/server/http";
+import { busy, fail, fetchJson, limited, ok } from "@/lib/server/http";
+import { spendBudget } from "@/lib/server/rateLimit";
 import { parsePoints, parseProfile, type Profile } from "@/lib/server/parse";
 import { orsRequest, osrmUrl, parseOrs, parseOsrm, type RouteResult } from "@/lib/server/providers";
 import type { LngLat } from "@/lib/types";
@@ -13,12 +14,13 @@ async function viaOrs(profile: Profile, points: LngLat[], key: string): Promise<
 }
 
 export async function GET(req: Request) {
-  const blocked = limited(req, "route", 30);
+  const blocked = limited(req, "route", 20);
   if (blocked) return blocked;
   const params = new URL(req.url).searchParams;
   const profile = parseProfile(params.get("profile"));
   const points = parsePoints(params.get("points") ?? "");
   if (!profile || !points) return fail(400, "Send a travel profile and 2 to 25 points.");
+  if (!spendBudget("route", 1800)) return busy();
   const key = process.env.ORS_API_KEY;
   const fromOrs = key ? await viaOrs(profile, points, key) : null;
   if (fromOrs) return ok(fromOrs);

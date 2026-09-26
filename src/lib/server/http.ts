@@ -4,18 +4,26 @@ export const USER_AGENT = "Docent/0.1 (+https://github.com/bytemel/docent)";
 export const TIMEOUT_MS = 8000;
 
 export const CACHE_OK = "public, s-maxage=86400, stale-while-revalidate=604800";
+export const CACHE_SHORT = "public, s-maxage=300";
 
 export function clientIp(req: Request): string {
-  const fwd = req.headers.get("x-forwarded-for");
-  if (fwd) {
-    const first = fwd.split(",")[0]?.trim();
-    if (first) return first;
-  }
-  return req.headers.get("x-real-ip")?.trim() || "unknown";
+  const fwd = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return ipKey(fwd || req.headers.get("x-real-ip")?.trim() || "unknown");
 }
 
-export function ok(body: unknown): Response {
-  return Response.json(body, { headers: { "Cache-Control": CACHE_OK } });
+export function ipKey(ip: string): string {
+  if (!ip.includes(":") || ip.includes(".")) return ip;
+  const [head] = ip.split("::");
+  const groups = head.split(":").filter(Boolean);
+  return `${groups.slice(0, 4).join(":")}::/64`;
+}
+
+export function ok(body: unknown, cache: string = CACHE_OK): Response {
+  return Response.json(body, { headers: { "Cache-Control": cache } });
+}
+
+export function busy(): Response {
+  return fail(503, "Docent is very busy today. Please try again later or drop a pin on the map.");
 }
 
 export function fail(status: number, message: string): Response {

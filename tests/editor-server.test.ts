@@ -1,7 +1,8 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { parsePoints, rateLimit } from "@/lib/server";
 import { parseLatLng, parseProfile, parseQuery } from "@/lib/server/parse";
-import { resetRateLimits } from "@/lib/server/rateLimit";
+import { resetRateLimits, spendBudget } from "@/lib/server/rateLimit";
+import { ipKey } from "@/lib/server/http";
 import { parseOsrm, parsePhotonReverse, parsePhotonSearch } from "@/lib/server/providers";
 
 describe("parsePoints", () => {
@@ -142,5 +143,32 @@ describe("search merge", async () => {
       parseNominatim([{ lat: "-1.26", lon: "36.80", name: "Sarit Centre", address: { road: "Karuna Road", city: "Nairobi", country_code: "ke" } }]),
     ).toEqual([{ label: "Sarit Centre", sub: "Karuna Road, Nairobi", lng: 36.8, lat: -1.26, cc: "ke" }]);
     expect(parseNominatim({})).toEqual([]);
+  });
+});
+
+describe("abuse limits", () => {
+  it("denies new keys instead of clearing everyone when the table is full", () => {
+    resetRateLimits();
+    const now = 1_000_000;
+    for (let i = 0; i < 10000; i++) rateLimit(`fill:${i}`, 5, 60_000, now);
+    expect(rateLimit("fill:new", 5, 60_000, now + 1)).toBe(false);
+    expect(rateLimit("fill:1", 5, 60_000, now + 1)).toBe(true);
+    resetRateLimits();
+  });
+
+  it("caps upstream calls per day and resets the next day", () => {
+    resetRateLimits();
+    const day = 86_400_000 * 20000;
+    expect(spendBudget("x", 2, day)).toBe(true);
+    expect(spendBudget("x", 2, day + 1)).toBe(true);
+    expect(spendBudget("x", 2, day + 2)).toBe(false);
+    expect(spendBudget("x", 2, day + 86_400_000)).toBe(true);
+    resetRateLimits();
+  });
+
+  it("groups IPv6 addresses by their /64 network", () => {
+    expect(ipKey("2001:db8:1:2:aaaa::1")).toBe("2001:db8:1:2::/64");
+    expect(ipKey("2001:db8:1:2:bbbb:cccc:dddd:eeee")).toBe("2001:db8:1:2::/64");
+    expect(ipKey("41.90.1.2")).toBe("41.90.1.2");
   });
 });
