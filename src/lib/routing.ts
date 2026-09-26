@@ -56,3 +56,22 @@ export async function routeLeg(
   cache.set(url, r);
   return r;
 }
+
+export type RouteLabel = "shortest" | "fastest";
+
+export interface RouteOption {
+  id: string;
+  geometry: LngLat[];
+  distanceM: number;
+  durationS: number;
+  labels: RouteLabel[];
+}
+
+export async function routeOptions(
+  profile: RoutingProfile,
+  points: LngLat[],
+  signal?: AbortSignal,
+): Promise<RouteOption[]> {
+  const leg = await routeLeg(profile, points, signal);
+  return [{ id: "r0", geometry: leg.geometry, distanceM: leg.distanceM, durationS: 0, labels: ["shortest", "fastest"] }];
+}
