@@ -1,4 +1,4 @@
-import { Marker, type GeoJSONSource, type Map as MLMap } from "maplibre-gl";
+import { Marker, type Map as MLMap } from "maplibre-gl";
 import { MODES } from "@/lib/modes";
 import type { Tier } from "@/lib/tier";
 import type { TimelineSample } from "@/lib/timeline";
@@ -12,56 +12,35 @@ export interface PropRenderer {
   destroy(): void;
 }
 
-const DOT_SRC = "dp-dot";
-
 export class BasicRenderer implements PropRenderer {
   readonly kind = "basic" as const;
-  private map: MLMap;
-  private data = {
-    type: "Feature" as const,
-    properties: { color: MODES.walk.color },
-    geometry: { type: "Point" as const, coordinates: [0, 0] },
-  };
-  private lastLng = NaN;
-  private lastLat = NaN;
+  private marker: Marker;
+  private dot: HTMLDivElement;
   private lastMode: Mode | null = null;
 
   constructor(map: MLMap, casing: string) {
-    this.map = map;
-    map.addSource(DOT_SRC, { type: "geojson", data: this.data });
-    map.addLayer({
-      id: "dp-dot-halo",
-      type: "circle",
-      source: DOT_SRC,
-      paint: { "circle-radius": 13, "circle-color": ["get", "color"], "circle-opacity": 0.25 },
-    });
-    map.addLayer({
-      id: "dp-dot",
-      type: "circle",
-      source: DOT_SRC,
-      paint: {
-        "circle-radius": 8,
-        "circle-color": ["get", "color"],
-        "circle-stroke-color": casing,
-        "circle-stroke-width": 3,
-      },
-    });
+    const root = document.createElement("div");
+    root.className = "dp-prop";
+    root.style.zIndex = "3";
+    this.dot = document.createElement("div");
+    this.dot.className = "dp-dot";
+    this.dot.style.borderColor = casing;
+    root.appendChild(this.dot);
+    this.marker = new Marker({ element: root });
+    this.marker.setLngLat([0, 0]).addTo(map);
   }
 
   update(s: TimelineSample) {
-    if (s.pos[0] === this.lastLng && s.pos[1] === this.lastLat && s.mode === this.lastMode) return;
-    this.lastLng = s.pos[0];
-    this.lastLat = s.pos[1];
-    this.lastMode = s.mode;
-    this.data.geometry.coordinates[0] = s.pos[0];
-    this.data.geometry.coordinates[1] = s.pos[1];
-    this.data.properties.color = MODES[s.mode].color;
-    (this.map.getSource(DOT_SRC) as GeoJSONSource | undefined)?.setData(this.data);
+    this.marker.setLngLat(s.pos);
+    if (s.mode !== this.lastMode) {
+      this.lastMode = s.mode;
+      this.dot.style.background = MODES[s.mode].color;
+      this.dot.style.setProperty("--dp-halo", MODES[s.mode].color);
+    }
   }
 
   destroy() {
-    for (const id of ["dp-dot", "dp-dot-halo"]) if (this.map.getLayer(id)) this.map.removeLayer(id);
-    if (this.map.getSource(DOT_SRC)) this.map.removeSource(DOT_SRC);
+    this.marker.remove();
   }
 }
 
@@ -88,6 +67,7 @@ export class FlatRenderer implements PropRenderer {
     this.map = map;
     const root = document.createElement("div");
     root.className = "dp-prop";
+    root.style.zIndex = "3";
     this.veh = document.createElement("div");
     this.veh.className = "dp-veh";
     this.veh.innerHTML = VEH.map((v) => vehicleSvg(v)).join("");

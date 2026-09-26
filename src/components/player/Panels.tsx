@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import { ArrowCounterClockwise, ArrowSquareOut, PencilSimple, Plus } from "@phosphor-icons/react";
+import { ArrowCounterClockwise, ArrowSquareOut, PencilSimple, Plus, X } from "@phosphor-icons/react";
 import { formatDistance, formatDuration } from "@/lib/geo";
 import { prefersReducedMotion } from "@/lib/map";
 import { MODES } from "@/lib/modes";
+import { safeMode } from "@/lib/timeline";
 import type { Mode, RouteDoc, Step } from "@/lib/types";
 import { PLAYER } from "@/strings/player";
 
@@ -13,18 +14,21 @@ export function routeStats(doc: RouteDoc) {
   let distanceM = 0;
   let durationS = 0;
   const modes: Mode[] = [];
-  for (const s of doc.segments) {
-    distanceM += s.distanceM;
-    durationS += s.durationS;
-    if (!modes.includes(s.mode)) modes.push(s.mode);
+  for (const s of Array.isArray(doc.segments) ? doc.segments : []) {
+    if (Number.isFinite(s.distanceM)) distanceM += s.distanceM;
+    if (Number.isFinite(s.durationS)) durationS += s.durationS;
+    const m = safeMode(s.mode);
+    if (!modes.includes(m)) modes.push(m);
   }
   return { distanceM, durationS, modes };
 }
 
 export function googleMapsUrl(doc: RouteDoc): string | null {
-  const last = doc.segments[doc.segments.length - 1];
-  if (!last) return null;
-  const travelmode = last.mode === "walk" ? "walking" : last.mode === "bike" ? "bicycling" : "driving";
+  const segs = Array.isArray(doc.segments) ? doc.segments : [];
+  const last = segs[segs.length - 1];
+  if (!last || !Number.isFinite(last.to?.lat) || !Number.isFinite(last.to?.lng)) return null;
+  const mode = safeMode(last.mode);
+  const travelmode = mode === "walk" ? "walking" : mode === "bike" ? "bicycling" : "driving";
   return `https://www.google.com/maps/dir/?api=1&destination=${last.to.lat},${last.to.lng}&travelmode=${travelmode}`;
 }
 
@@ -36,11 +40,11 @@ export function Summary({ doc, heading }: { doc: RouteDoc; heading: boolean }) {
       <Title className="text-xl font-semibold leading-tight text-ink text-balance">{doc.title || PLAYER.untitled}</Title>
       <dl className="grid grid-cols-2 gap-2">
         <div className="rounded-[12px] bg-surface-2 px-3 py-2">
-          <dt className="text-xs text-ink-3">{PLAYER.distance}</dt>
+          <dt className="text-xs text-ink-2">{PLAYER.distance}</dt>
           <dd className="text-base font-semibold text-ink">{formatDistance(distanceM)}</dd>
         </div>
         <div className="rounded-[12px] bg-surface-2 px-3 py-2">
-          <dt className="text-xs text-ink-3">{PLAYER.realTime}</dt>
+          <dt className="text-xs text-ink-2">{PLAYER.realTime}</dt>
           <dd className="text-base font-semibold text-ink">{formatDuration(durationS)}</dd>
         </div>
       </dl>
@@ -156,6 +160,54 @@ export function EndCard({
             </Link>
           ) : null}
         </div>
+      </div>
+    </div>
+  );
+}
+
+export function StaticView({
+  doc,
+  variant,
+  note,
+  onClose,
+}: {
+  doc: RouteDoc;
+  variant: "page" | "preview" | "embed";
+  note: string;
+  onClose?: () => void;
+}) {
+  const embed = variant === "embed";
+  const gm = googleMapsUrl(doc);
+  const steps = Array.isArray(doc.steps) ? doc.steps : [];
+  const shell =
+    variant === "preview"
+      ? "fixed inset-0 z-50 overflow-y-auto bg-bg"
+      : embed
+        ? "h-full w-full overflow-y-auto rounded-[12px] bg-surface"
+        : "min-h-dvh w-full bg-bg";
+  return (
+    <div className={shell}>
+      {variant === "preview" && onClose ? (
+        <button
+          type="button"
+          className="btn btn-icon absolute right-3 top-3 z-20 shadow-float"
+          aria-label={PLAYER.close}
+          onClick={onClose}
+        >
+          <X size={20} weight="bold" aria-hidden="true" />
+        </button>
+      ) : null}
+      <div className="mx-auto flex w-full max-w-xl flex-col gap-4 p-4">
+        <p role="status" className="panel p-3 text-sm text-ink-2">
+          {note}
+        </p>
+        <Summary doc={doc} heading={variant === "page"} />
+        {embed ? null : <StepList steps={steps} current={-1} />}
+        {gm && !embed ? (
+          <a className="btn btn-primary" href={gm} target="_blank" rel="noopener noreferrer">
+            {PLAYER.openGoogleMaps}
+          </a>
+        ) : null}
       </div>
     </div>
   );

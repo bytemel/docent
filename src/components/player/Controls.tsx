@@ -23,6 +23,8 @@ export interface ControlsProps {
   showFollow: boolean;
   sheetOpen: boolean;
   scrubRef: RefObject<HTMLInputElement | null>;
+  playRef: RefObject<HTMLButtonElement | null>;
+  live: boolean;
   timeRef: RefObject<HTMLSpanElement | null>;
   onToggle: () => void;
   onSeek: (t: number) => void;
@@ -44,6 +46,8 @@ export default function Controls({
   showFollow,
   sheetOpen,
   scrubRef,
+  playRef,
+  live,
   timeRef,
   onToggle,
   onSeek,
@@ -55,16 +59,23 @@ export default function Controls({
   onSheet,
 }: ControlsProps) {
   const current = steps[stepIndex];
+  const next = live ? steps[stepIndex + 1] : undefined;
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-3">
       <div aria-live="polite" aria-atomic="true" className="min-h-[3.25rem]">
-        <p className="text-xs font-medium text-ink-3">
-          {steps.length ? stepLabel(stepIndex, steps.length) : PLAYER.currentStep}
+        <p className="text-xs font-medium text-ink-2">
+          {live ? PLAYER.now : steps.length ? stepLabel(stepIndex, steps.length) : PLAYER.currentStep}
         </p>
         <p className="text-lg font-semibold leading-snug text-pretty text-ink">{current?.text ?? ""}</p>
+        {next ? (
+          <p className="text-sm text-ink-2">
+            {PLAYER.next} {next.text}
+          </p>
+        ) : null}
       </div>
       <div className="flex items-center gap-3">
         <button
+          ref={playRef}
           type="button"
           className="btn btn-primary h-14 min-h-14 w-14 shrink-0 p-0"
           aria-label={playing ? PLAYER.pause : PLAYER.play}
@@ -85,9 +96,12 @@ export default function Controls({
             step={0.05}
             defaultValue={0}
             aria-label={PLAYER.seek}
-            className="h-7 w-full cursor-pointer accent-accent"
+            className="h-11 w-full cursor-pointer accent-accent"
             onChange={(e) => onSeek(Number(e.currentTarget.value))}
-            onPointerDown={() => onDrag(true)}
+            onPointerDown={(e) => {
+              e.currentTarget.setPointerCapture(e.pointerId);
+              onDrag(true);
+            }}
             onPointerUp={() => onDrag(false)}
             onPointerCancel={() => onDrag(false)}
           />
@@ -95,6 +109,15 @@ export default function Controls({
             {`${timeLabel(0)} / ${timeLabel(totalS)}`}
           </span>
         </div>
+        <button
+          type="button"
+          className="chip min-h-11 w-11 shrink-0 justify-center self-start px-0"
+          aria-label={PLAYER.showWhole}
+          title={PLAYER.showWhole}
+          onClick={onWhole}
+        >
+          <CornersOut size={18} weight="bold" aria-hidden="true" />
+        </button>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <div role="group" aria-label={PLAYER.speed} className="flex gap-1">
@@ -102,7 +125,7 @@ export default function Controls({
             <button
               key={v}
               type="button"
-              className="chip min-w-11 justify-center px-2.5"
+              className="chip min-h-11 min-w-11 justify-center px-2.5"
               aria-pressed={speed === v}
               onClick={() => onSpeed(v)}
             >
@@ -115,7 +138,7 @@ export default function Controls({
             <button
               key={t.id}
               type="button"
-              className="chip justify-center px-2.5"
+              className="chip min-h-11 justify-center px-2.5"
               aria-pressed={tier === t.id}
               onClick={() => onTier(t.id)}
             >
@@ -123,12 +146,8 @@ export default function Controls({
             </button>
           ))}
         </div>
-        <button type="button" className="chip" onClick={onWhole}>
-          <CornersOut size={16} weight="bold" aria-hidden="true" />
-          {PLAYER.showWhole}
-        </button>
         {showFollow ? (
-          <button type="button" className="chip" onClick={onFollow}>
+          <button type="button" className="chip min-h-11" onClick={onFollow}>
             <Crosshair size={16} weight="bold" aria-hidden="true" />
             {PLAYER.follow}
           </button>
@@ -136,7 +155,7 @@ export default function Controls({
       </div>
       <button
         type="button"
-        className="btn btn-ghost min-h-10 w-full lg:hidden"
+        className="btn btn-ghost min-h-11 w-full lg:hidden"
         aria-expanded={sheetOpen}
         onClick={onSheet}
       >

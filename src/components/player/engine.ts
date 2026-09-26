@@ -2,7 +2,11 @@ import { lowerTier, shouldDowngrade, type Tier } from "@/lib/tier";
 import { createSample, sampleTimelineInto, transferAt, type Timeline } from "@/lib/timeline";
 import type { RouteDoc } from "@/lib/types";
 import { timeLabel } from "@/strings/player";
+import type { LocationHooks } from "./location";
 import type { PinEl, PlayerScene } from "./scene";
+
+const FAIL_AFTER_MS = 20000;
+const FPS_WARMUP_MS = 500;
 
 export interface EngineCallbacks {
   playing(on: boolean): void;
@@ -47,17 +51,25 @@ export class PlaybackEngine {
   private step = -1;
   private ready = false;
   private measured = false;
-  private fps: { start: number; win: number; frames: number; samples: number[] } | null = null;
+  private fps: { begin: number; start: number; win: number; frames: number; samples: number[] } | null = null;
   private loopTimer: ReturnType<typeof setTimeout> | undefined;
-  private failTimer: ReturnType<typeof setTimeout>;
+  private failTimer: ReturnType<typeof setInterval>;
+  private visibleWaitMs = 0;
+  private failed = false;
   private cancelled = false;
 
   constructor(o: EngineInit) {
     this.o = o;
     this.wantPlay = o.autoplay && !o.embed;
-    this.failTimer = setTimeout(() => {
-      if (!this.ready && !this.cancelled) o.cb.mapState("failed");
-    }, 20000);
+    this.failTimer = setInterval(() => {
+      if (this.ready || this.cancelled || this.failed) return;
+      if (document.visibilityState !== "visible") return;
+      this.visibleWaitMs += 1000;
+      if (this.visibleWaitMs >= FAIL_AFTER_MS) {
+        this.failed = true;
+        o.cb.mapState("failed");
+      }
+    }, 1000);
     import("./scene")
       .then(({ PlayerScene }) => {
         if (this.cancelled) return;
@@ -76,6 +88,9 @@ export class PlaybackEngine {
             onTierFailed: (t) => {
               if (t === o.tier()) o.cb.tier(lowerTier(t), false);
             },
+            onRestore: () => {
+              if (this.ready) void this.doApply(o.tier());
+            },
           });
         } catch {
           o.cb.noMap();
@@ -87,6 +102,8 @@ export class PlaybackEngine {
           await this.doApply(o.tier());
           if (this.cancelled) return;
           this.ready = true;
+          this.failed = false;
+          clearInterval(this.failTimer);
           o.cb.mapState("ready");
           if (this.wantPlay) this.play();
         });
@@ -128,12 +145,17 @@ export class PlaybackEngine {
 
   private startMeasure() {
     if (!this.o.auto() || this.measured || this.o.tier() === "basic") return;
-    this.fps = { start: 0, win: 0, frames: 0, samples: [] };
+    this.fps = { begin: 0, start: 0, win: 0, frames: 0, samples: [] };
   }
 
   private measure(ts: number) {
     const f = this.fps;
     if (!f) return;
+    if (!f.begin) {
+      f.begin = ts;
+      return;
+    }
+    if (ts - f.begin < FPS_WARMUP_MS) return;
     if (!f.start) {
       f.start = ts;
       f.win = ts;
@@ -210,11 +232,13 @@ export class PlaybackEngine {
     }
   }
 
-  private async doApply(t: Tier) {
+  private async doApply(t: Tier): Promise<void> {
     if (!this.scene) return;
     const actual = await this.scene.setTier(t);
-    if (this.cancelled) return;
-    if (actual !== this.o.tier()) this.o.cb.tier(actual, false);
+    if (this.cancelled || actual === null) return;
+    const wanted = this.o.tier();
+    if (wanted !== t) return this.doApply(wanted);
+    if (actual !== t) this.o.cb.tier(actual, false);
     this.snap();
     this.render(0);
     this.kick();
@@ -290,12 +314,28 @@ export class PlaybackEngine {
     this.kick();
   }
 
+  startLocation(hooks: LocationHooks) {
+    this.scene?.startLocation(hooks);
+  }
+
+  stopLocation() {
+    this.scene?.stopLocation();
+  }
+
+  followMe(on: boolean) {
+    this.scene?.followMe(on);
+  }
+
+  guideMe() {
+    this.scene?.guideMe();
+  }
+
   destroy() {
     this.cancelled = true;
     if (this.raf) cancelAnimationFrame(this.raf);
     this.raf = 0;
     clearTimeout(this.loopTimer);
-    clearTimeout(this.failTimer);
+    clearInterval(this.failTimer);
     this.scene?.destroy();
     this.scene = null;
   }

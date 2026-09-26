@@ -9,8 +9,10 @@ import { buildTimeline, stepTimes } from "@/lib/timeline";
 import type { RouteDoc } from "@/lib/types";
 import { PLAYER } from "@/strings/player";
 import Controls from "./Controls";
+import LivePanel, { LiveToggle } from "./LivePanel";
+import { LOC_OFF, type FixOut, type LocStatus } from "./location";
 import { PlaybackEngine } from "./engine";
-import { EndCard, googleMapsUrl, StepList, Summary } from "./Panels";
+import { EndCard, StaticView, StepList, Summary } from "./Panels";
 import { EndpointContent, PinContent } from "./Pins";
 import { PROP_CSS } from "./props2d";
 import type { PinEl } from "./scene";
@@ -93,6 +95,10 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
   const timeRef = useRef<HTMLSpanElement>(null);
   const dragging = useRef(false);
   const engRef = useRef<PlaybackEngine | null>(null);
+  const playRef = useRef<HTMLButtonElement>(null);
+  const sinkRef = useRef<((fix: FixOut) => void) | null>(null);
+  const [loc, setLoc] = useState<LocStatus>(LOC_OFF);
+  const [followMe, setFollowMe] = useState(false);
   const tierRef = useRef(tier);
   const autoRef = useRef(true);
 
@@ -100,50 +106,64 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
     if (noMap || !mapRef.current) return;
     const container = mapRef.current;
     const wantAuto = (autoplay ?? true) && !env.reducedMotion;
-    const eng = new PlaybackEngine({
-      container,
-      doc,
-      tl,
-      times,
-      pins,
-      endpoints,
-      dark: env.dark,
-      reducedMotion: env.reducedMotion,
-      embed,
-      autoplay: wantAuto,
-      tier: () => tierRef.current,
-      auto: () => autoRef.current,
-      scrub: () => scrubRef.current,
-      time: () => timeRef.current,
-      dragging: () => dragging.current,
-      cb: {
-        playing: setPlaying,
-        ended: (on) => {
-          setEnded(on);
-          if (on) setSheetOpen(false);
+    let eng: PlaybackEngine | null = null;
+    const create = () =>
+      new PlaybackEngine({
+        container,
+        doc,
+        tl,
+        times,
+        pins,
+        endpoints,
+        dark: env.dark,
+        reducedMotion: env.reducedMotion,
+        embed,
+        autoplay: wantAuto,
+        tier: () => tierRef.current,
+        auto: () => autoRef.current,
+        scrub: () => scrubRef.current,
+        time: () => timeRef.current,
+        dragging: () => dragging.current,
+        cb: {
+          playing: setPlaying,
+          ended: (on) => {
+            setEnded(on);
+            if (on) setSheetOpen(false);
+          },
+          step: setStepIndex,
+          follow: setFollow,
+          tier: (t, downgraded) => {
+            if (downgraded) setNote(true);
+            setTier(t);
+          },
+          mapState: setMapState,
+          noMap: () => setNoMap(true),
         },
-        step: setStepIndex,
-        follow: setFollow,
-        tier: (t, downgraded) => {
-          if (downgraded) setNote(true);
-          setTier(t);
-        },
-        mapState: setMapState,
-        noMap: () => setNoMap(true),
-      },
-    });
-    engRef.current = eng;
+      });
     let io: IntersectionObserver | null = null;
     if (embed && rootRef.current && typeof IntersectionObserver !== "undefined") {
-      io = new IntersectionObserver((entries) => eng.visible(!!entries[entries.length - 1]?.isIntersecting), {
-        threshold: 0.25,
-      });
+      io = new IntersectionObserver(
+        (entries) => {
+          const vis = !!entries[entries.length - 1]?.isIntersecting;
+          if (vis && !eng) {
+            eng = create();
+            engRef.current = eng;
+          }
+          eng?.visible(vis);
+        },
+        { threshold: 0.25, rootMargin: "200px 0px" },
+      );
       io.observe(rootRef.current);
+    } else {
+      eng = create();
+      engRef.current = eng;
     }
     return () => {
       io?.disconnect();
-      eng.destroy();
+      eng?.destroy();
       engRef.current = null;
+      setLoc(LOC_OFF);
+      setFollowMe(false);
     };
   }, [noMap, tl, doc, times, pins, endpoints, env, embed, autoplay]);
 
@@ -162,10 +182,6 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
     if (embed) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === "Escape" && variant === "preview" && onClose) {
-        onClose();
-        return;
-      }
       const el = e.target as HTMLElement | null;
       const tag = el?.tagName;
       const range = tag === "INPUT" && (el as HTMLInputElement).type === "range";
@@ -181,7 +197,13 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [embed, variant, onClose]);
+  }, [embed]);
+
+  useEffect(() => {
+    if (variant !== "preview") return;
+    const id = requestAnimationFrame(() => playRef.current?.focus());
+    return () => cancelAnimationFrame(id);
+  }, [variant]);
 
   useEffect(() => {
     if (variant !== "preview") return;
@@ -215,32 +237,7 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
       </button>
     ) : null;
 
-  if (noMap) {
-    const gm = googleMapsUrl(doc);
-    const shell =
-      variant === "preview"
-        ? "fixed inset-0 z-50 overflow-y-auto bg-bg"
-        : embed
-          ? "h-full w-full overflow-y-auto rounded-[12px] bg-surface"
-          : "min-h-dvh w-full bg-bg";
-    return (
-      <div className={shell}>
-        {closeBtn}
-        <div className="mx-auto flex w-full max-w-xl flex-col gap-4 p-4">
-          <p role="status" className="panel p-3 text-sm text-ink-2">
-            {PLAYER.noWebgl}
-          </p>
-          <Summary doc={doc} heading={variant === "page"} />
-          {embed ? null : <StepList steps={steps} current={-1} />}
-          {gm && !embed ? (
-            <a className="btn btn-primary" href={gm} target="_blank" rel="noopener noreferrer">
-              {PLAYER.openGoogleMaps}
-            </a>
-          ) : null}
-        </div>
-      </div>
-    );
-  }
+  if (noMap) return <StaticView doc={doc} variant={variant} note={PLAYER.noWebgl} onClose={onClose} />;
 
   if (embed) {
     return (
@@ -251,7 +248,7 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
           </div>
         <button
           type="button"
-          className="btn btn-icon absolute bottom-3 left-3 z-10 shadow-float"
+          className="btn btn-icon absolute left-3 top-3 z-10 shadow-float"
           aria-label={playing ? PLAYER.pause : PLAYER.play}
           onClick={() => engRef.current?.toggle()}
         >
@@ -262,6 +259,8 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
     );
   }
 
+  const live = loc.state === "on" && loc.stepIndex !== null;
+  const shownStep = live ? (loc.stepIndex ?? 0) : stepIndex;
   const rows = sheetOpen ? "grid-rows-[32dvh_auto_minmax(0,1fr)]" : "grid-rows-[minmax(0,1fr)_auto]";
   return (
     <div ref={rootRef} className={variant === "preview" ? "fixed inset-0 z-50 bg-bg" : "relative h-dvh w-full overflow-hidden bg-bg"}>
@@ -277,6 +276,29 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
             </span>
           </div>
           {closeBtn}
+          {variant === "page" && mapState === "ready" && !ended ? (
+            <div className="absolute bottom-10 right-3 z-10">
+              <LiveToggle
+                loc={loc}
+                followMe={followMe}
+                onStart={() =>
+                  engRef.current?.startLocation({
+                    onStatus: setLoc,
+                    onFollowOff: () => setFollowMe(false),
+                    onFix: (fix) => sinkRef.current?.(fix),
+                  })
+                }
+                onStop={() => {
+                  engRef.current?.stopLocation();
+                  setFollowMe(false);
+                }}
+                onFollowMe={(on) => {
+                  setFollowMe(on);
+                  engRef.current?.followMe(on);
+                }}
+              />
+            </div>
+          ) : null}
           {mapState === "loading" ? (
             <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
               <span className="chip shadow-float">{PLAYER.loadingMap}</span>
@@ -290,7 +312,7 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
             </div>
           ) : null}
           {note ? (
-            <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-10 flex">
+            <div className="pointer-events-none absolute left-3 right-3 top-16 z-10 flex lg:top-3">
               <p role="status" className="panel px-3 py-2 text-sm text-ink-2">
                 {PLAYER.switchedLighter}
               </p>
@@ -309,7 +331,9 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
         >
           <Controls
             steps={steps}
-            stepIndex={stepIndex}
+            stepIndex={shownStep}
+            live={live}
+            playRef={playRef}
             playing={playing}
             totalS={tl.totalS}
             speed={speed}
@@ -336,6 +360,16 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
             onFollow={() => engRef.current?.follow()}
             onSheet={() => setSheetOpen((o) => !o)}
           />
+          {variant === "page" && loc.state !== "off" ? (
+            <div className="mx-auto mt-3 w-full max-w-3xl">
+              <LivePanel
+                loc={loc}
+                arrivalNote={doc.arrival?.note?.trim() ?? ""}
+                sinkRef={sinkRef}
+                onGuide={() => engRef.current?.guideMe()}
+              />
+            </div>
+          ) : null}
         </section>
 
         <aside
@@ -345,7 +379,7 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
           <Summary doc={doc} heading={variant === "page"} />
           <div className="flex flex-col gap-2">
             <h2 className="text-sm font-semibold text-ink-2">{PLAYER.steps}</h2>
-            <StepList steps={steps} current={stepIndex} onPick={(i) => engRef.current?.seek(times[i] ?? 0)} />
+            <StepList steps={steps} current={shownStep} onPick={(i) => engRef.current?.seek(times[i] ?? 0)} />
           </div>
           <p className="hidden text-xs text-ink-3 lg:block">{PLAYER.keyboardHint}</p>
         </aside>

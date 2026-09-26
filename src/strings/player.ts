@@ -23,6 +23,32 @@ export const PLAYER = {
   loadingMap: "Loading the map",
   switchedLighter: "Switched to a lighter view for smoother playback",
   noWebgl: "This device cannot show the map, so here are the steps in writing.",
+  crashed: "Something went wrong with the animation, so here are the steps in writing.",
+  showMe: "Show where I am",
+  stopShowingMe: "Stop sharing",
+  followMe: "Follow me",
+  locWaiting: "Finding where you are",
+  locWeak: "Looking for a better GPS signal. Try near a window or outside.",
+  locDenied: "Location is off for this page. You can allow it in your browser settings.",
+  locUnavailable: "This device cannot share its location right now.",
+  guideMe: "Guide me to the route",
+  guideLoading: "Finding a way to the route",
+  guideFailed: "Could not find a path, so the line is straight.",
+  now: "Now:",
+  next: "Next:",
+  keepOpen: "Keep this page open while you walk.",
+  theSender: "the sender",
+  liveFailed: "Live sharing did not start. Please try again.",
+  liveConnecting: "Connecting",
+  liveOn: "Sharing live",
+  liveStopped: "Not sharing",
+  liveOffline: "Offline. It will try again.",
+  liveUnavailable: "Live sharing is not available right now.",
+  liveLinkNote: "Send this link to the host so they can watch you.",
+  copyLink: "Copy link",
+  copied: "Copied",
+  whatsapp: "Send on WhatsApp",
+  stopLive: "Stop live sharing",
   mapFailed: "The map did not load. The steps below still show the way.",
   arrived: "You have arrived",
   openGoogleMaps: "Open in Google Maps",
@@ -44,4 +70,20 @@ export function stepLabel(i: number, n: number): string {
 export function timeLabel(t: number): string {
   const s = Math.max(0, Math.round(t));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+export function toGoLabel(distance: string): string {
+  return `${distance} to go`;
+}
+
+export function offRouteLabel(distance: string): string {
+  return `You are ${distance} from the route`;
+}
+
+export function shareLiveLabel(name: string): string {
+  return `Share live with ${name}`;
+}
+
+export function whatsappText(url: string): string {
+  return `Watch me on the way: ${url}`;
 }
