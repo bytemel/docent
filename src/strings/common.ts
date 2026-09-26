@@ -45,7 +45,7 @@ export const viewer = {
   broken: "This route link is broken or incomplete. Ask the sender to share it again.",
   makeOwn: "Make a route",
   home: "Go to the home page",
-  summary: (distance: string, modes: string) => `A ${distance} route by ${modes}. Watch it play step by step.`,
+  summary: (distance: string, modes: string) => `A ${distance} route: ${modes}. Watch it play step by step.`,
 };
 
 export const notFound = {
