@@ -4,6 +4,7 @@ import { haversine } from "@/lib/geo";
 import {
   classifyPoi,
   decodePoiTile,
+  namePoi,
   lngLatToTile,
   MAX_TILES,
   poiName,
@@ -215,5 +216,25 @@ describe("rankLandmarks", () => {
   });
   it("handles a degenerate route", () => {
     expect(rankLandmarks([c("a", 0, 0, "shop")], [m(0, 0)], [])).toEqual([]);
+  });
+});
+
+describe("generic POI names", () => {
+  it("adds the kind to a generic name and marks it weak", () => {
+    expect(namePoi("School", "bus")).toEqual({ label: "School (bus stop)", generic: true });
+    expect(namePoi("Church", "worship")).toEqual({ label: "Church (place of worship)", generic: true });
+    expect(namePoi("School", "school")).toEqual({ label: "School", generic: true });
+    expect(namePoi("Kianda School", "school")).toEqual({ label: "Kianda School", generic: false });
+  });
+  it("ranks a generic name below a named neighbour", () => {
+    const buf = makeTile([
+      { id: 10, x: 2048, y: 2048, props: { class: "bus", subclass: "bus_stop", name: "School" } },
+      { id: 11, x: 2050, y: 2050, props: { class: "shop", subclass: "convenience", name: "Mama Wanjiku Shop" } },
+    ]);
+    const cands = decodePoiTile(buf, 9866, 8249, 14);
+    expect(cands[0]).toMatchObject({ label: "School (bus stop)", weak: true });
+    const centre = tileToLngLat(9866.5, 8249.5, 14);
+    const line: LngLat[] = [[centre[0], centre[1] - 0.002], [centre[0], centre[1] + 0.002]];
+    expect(rankLandmarks(cands, line, []).map((l) => l.label)).toEqual(["Mama Wanjiku Shop"]);
   });
 });
