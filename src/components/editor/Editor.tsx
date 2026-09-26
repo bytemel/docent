@@ -39,8 +39,19 @@ export default function Editor() {
   const [mapLoading, setMapLoading] = useState(true);
   const fitTick = e.fitTick;
 
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const sheet = sheetRef.current;
+    const root = rootRef.current;
+    if (!sheet || !root) return;
+    const ro = new ResizeObserver(() => root.style.setProperty("--dc-sheet", `${sheet.getBoundingClientRect().height}px`));
+    ro.observe(sheet);
+    return () => ro.disconnect();
+  }, []);
+
   const padding = useCallback((): Padding => {
-    if (window.matchMedia("(min-width: 1024px)").matches) return { top: 90, left: 436, right: 48, bottom: 48 };
+    if (window.matchMedia("(min-width: 1024px)").matches) return { top: 90, left: 472, right: 60, bottom: 60 };
     const h = sheetRef.current?.getBoundingClientRect().height ?? window.innerHeight * 0.42;
     return { top: 80, left: 48, right: 48, bottom: h + 24 };
   }, []);
@@ -50,6 +61,15 @@ export default function Editor() {
     mapApi.current = api;
     setMapReady(!!api);
   }, []);
+
+  useEffect(() => {
+    if (!mapReady) return;
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const apply = () => mapApi.current?.setBase({ top: 0, right: 0, bottom: 0, left: mq.matches ? 424 : 0 });
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, [mapReady]);
 
   useEffect(() => {
     if (fitTick > 0 && mapReady) mapApi.current?.fit(padding());
@@ -95,7 +115,7 @@ export default function Editor() {
   );
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-bg">
+    <div ref={rootRef} className="fixed inset-0 overflow-hidden bg-bg max-lg:[&_.maplibregl-ctrl-bottom-right]:bottom-[var(--dc-sheet,0px)]!">
       <EditorMap
         segments={e.doc.segments}
         pending={e.pending}
@@ -112,12 +132,12 @@ export default function Editor() {
         </div>
       ) : null}
 
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 p-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 p-2 pt-[max(0.5rem,env(safe-area-inset-top))] lg:p-3 lg:pt-[max(0.75rem,env(safe-area-inset-top))]">
         <Link href="/" className="btn btn-icon pointer-events-auto shrink-0 shadow-float" aria-label={t.back} title={t.back}>
           <ArrowLeftIcon size={20} aria-hidden />
         </Link>
         {editing ? (
-          <div className="pointer-events-auto min-w-0 flex-1 lg:max-w-[344px]">
+          <div className="pointer-events-auto min-w-0 flex-1 lg:max-w-[348px]">
             <label htmlFor="top-title" className="sr-only">
               {t.titleLabel}
             </label>
@@ -198,7 +218,7 @@ export default function Editor() {
           editing ? (
             <div className="flex shrink-0 flex-col gap-2 border-b border-line px-4 pb-2 pt-2">
               <div className="flex gap-2 sm:hidden">{actionsRow}</div>
-              <div role="tablist" aria-label={t.pageTitle} className="-mx-1 flex gap-0.5 overflow-x-auto px-1 sm:gap-1">
+              <div role="tablist" aria-label={t.pageTitle} className="flex gap-0.5 sm:gap-1">
                 {TABS.map((id) => (
                   <button
                     key={id}
@@ -207,7 +227,7 @@ export default function Editor() {
                     type="button"
                     aria-selected={e.tab === id}
                     aria-controls={`panel-${id}`}
-                    className="min-h-11 shrink-0 rounded-full px-2.5 text-sm font-semibold sm:px-3.5 text-ink-2 aria-selected:bg-ink aria-selected:text-bg"
+                    className="min-h-11 min-w-0 flex-1 rounded-full px-1.5 text-sm font-semibold text-ink-2 aria-selected:bg-ink aria-selected:text-bg sm:flex-none sm:px-3.5"
                     onClick={() => a.setTab(id)}
                   >
                     {t.tabs[id]}

@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { CheckIcon, CopyIcon, ExportIcon, WhatsappLogoIcon, XIcon } from "@phosphor-icons/react";
 import { t } from "@/strings/editor";
 
+const ROW_BTN = "min-w-0 flex-col gap-0.5 px-1 py-1.5 text-[13px] sm:flex-row sm:gap-2 sm:px-3 sm:text-[15px]";
+
 interface Props {
   url: string;
   title: string;
@@ -93,17 +95,17 @@ export default function ShareSheet({ url, title, onClose }: Props) {
           />
           {url.length > 6000 ? <p className="text-sm text-ink-3">{t.longLink}</p> : null}
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className="btn btn-primary" onClick={copy} aria-live="polite">
+        <div className={`grid gap-2 ${canShare ? "grid-cols-3" : "grid-cols-2"}`}>
+          <button type="button" className={`btn btn-primary ${ROW_BTN}`} onClick={copy} aria-live="polite">
             {copied ? <CheckIcon size={18} aria-hidden /> : <CopyIcon size={18} aria-hidden />}
             {copied ? t.copied : t.copy}
           </button>
-          <a className="btn" href={wa} target="_blank" rel="noopener noreferrer">
+          <a className={`btn ${ROW_BTN}`} href={wa} target="_blank" rel="noopener noreferrer">
             <WhatsappLogoIcon size={18} aria-hidden />
             {t.whatsapp}
           </a>
           {canShare ? (
-            <button type="button" className="btn" onClick={nativeShare}>
+            <button type="button" className={`btn ${ROW_BTN}`} onClick={nativeShare}>
               <ExportIcon size={18} aria-hidden />
               {t.more}
             </button>

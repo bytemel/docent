@@ -85,6 +85,7 @@ export class MapController {
   private drawPointer: number | null = null;
   private mq: MediaQueryList | null = null;
   private removed = false;
+  private base: Padding = { top: 0, right: 0, bottom: 0, left: 0 };
 
   constructor(container: HTMLElement, view: MapView, handlers: MapHandlers) {
     this.view = view;
@@ -146,6 +147,20 @@ export class MapController {
     return [c.lng, c.lat];
   }
 
+  setBase(p: Padding) {
+    this.base = p;
+    this.map.setPadding(p);
+  }
+
+  private extra(p: Padding): Padding {
+    return {
+      top: Math.max(0, p.top - this.base.top),
+      right: Math.max(0, p.right - this.base.right),
+      bottom: Math.max(0, p.bottom - this.base.bottom),
+      left: Math.max(0, p.left - this.base.left),
+    };
+  }
+
   fit(padding: Padding) {
     const coords: LngLat[] = [];
     for (const s of this.view.segments) coords.push(...(s.geometry.length ? s.geometry : [[s.from.lng, s.from.lat] as LngLat]));
@@ -155,17 +170,19 @@ export class MapController {
       if (end) coords.push([end.lng, end.lat]);
     }
     if (!coords.length) return;
-    this.map.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
+    this.map.setPadding(this.base);
     const duration = prefersReducedMotion() ? 0 : 600;
     const [minX, minY, maxX, maxY] = bbox(coords);
     const w = this.map.getContainer().clientWidth;
     const h = this.map.getContainer().clientHeight;
+    const b = this.base;
+    const e = this.extra(padding);
     const clamp = (v: number, max: number) => Math.max(0, Math.min(v, max));
     const pad = {
-      top: clamp(padding.top, h / 2 - 20),
-      bottom: clamp(padding.bottom, h / 2 - 20),
-      left: clamp(padding.left, w / 2 - 20),
-      right: clamp(padding.right, w / 2 - 20),
+      top: clamp(e.top, (h - b.top - b.bottom) / 2 - 20),
+      bottom: clamp(e.bottom, (h - b.top - b.bottom) / 2 - 20),
+      left: clamp(e.left, (w - b.left - b.right) / 2 - 20),
+      right: clamp(e.right, (w - b.left - b.right) / 2 - 20),
     };
     if (coords.length === 1 || (maxX - minX < 1e-5 && maxY - minY < 1e-5)) {
       this.map.easeTo({
@@ -186,11 +203,12 @@ export class MapController {
   }
 
   flyTo(p: LngLat, padding: Padding) {
-    this.map.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
+    this.map.setPadding(this.base);
+    const e = this.extra(padding);
     this.map.easeTo({
       center: p,
       zoom: Math.max(this.map.getZoom(), 16),
-      offset: [(padding.left - padding.right) / 2, (padding.top - padding.bottom) / 2],
+      offset: [(e.left - e.right) / 2, (e.top - e.bottom) / 2],
       duration: prefersReducedMotion() ? 0 : 600,
     });
   }
@@ -206,7 +224,7 @@ export class MapController {
     if (this.removed) return;
     const casing = cssVar("--surface", "#ffffff");
     const ink = cssVar("--ink", "#18181b");
-    const accent = cssVar("--accent", "#d9480f");
+    const accent = cssVar("--accent", "#c2410c");
     const m = this.map;
     if (!m.getSource(SRC_ROUTE)) m.addSource(SRC_ROUTE, { type: "geojson", data: EMPTY });
     if (!m.getSource(SRC_LM)) m.addSource(SRC_LM, { type: "geojson", data: EMPTY });

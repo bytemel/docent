@@ -8,6 +8,8 @@ import { t } from "@/strings/editor";
 
 const NAME_KEY = "docent:name";
 
+const ROW_BTN = "min-w-0 flex-col gap-0.5 px-1 py-1.5 text-[13px] sm:flex-row sm:gap-2 sm:px-3 sm:text-[15px]";
+
 interface Props {
   destination: Waypoint | null;
   onClose(): void;
@@ -122,9 +124,9 @@ export default function AskSheet({ destination, onClose }: Props) {
           </label>
         ) : null}
         <p className="rounded-[12px] bg-surface-2 p-3 text-sm text-ink-2 break-words">{text}</p>
-        <div className="flex flex-wrap gap-2">
+        <div className={`grid gap-2 ${canShare ? "grid-cols-3" : "grid-cols-2"}`}>
           <a
-            className="btn btn-primary"
+            className={`btn btn-primary ${ROW_BTN}`}
             href={`https://wa.me/?text=${encodeURIComponent(text)}`}
             target="_blank"
             rel="noopener noreferrer"
@@ -132,12 +134,12 @@ export default function AskSheet({ destination, onClose }: Props) {
             <WhatsappLogoIcon size={18} aria-hidden />
             {t.whatsapp}
           </a>
-          <button type="button" className="btn" onClick={copy} aria-live="polite">
+          <button type="button" className={`btn ${ROW_BTN}`} onClick={copy} aria-live="polite">
             {copied ? <CheckIcon size={18} aria-hidden /> : <CopyIcon size={18} aria-hidden />}
             {copied ? t.copied : t.copy}
           </button>
           {canShare ? (
-            <button type="button" className="btn" onClick={share}>
+            <button type="button" className={`btn ${ROW_BTN}`} onClick={share}>
               <ExportIcon size={18} aria-hidden />
               {t.more}
             </button>
