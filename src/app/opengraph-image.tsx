@@ -11,7 +11,9 @@ export const contentType = "image/png";
 const BOX = { x: 700, y: 110, w: 420, h: 410 };
 
 export default function Image() {
-  const { runs } = parseOg(new URLSearchParams(ogQuery(EXAMPLE_DOC)));
+  const [, ride, walk] = EXAMPLE_DOC.segments;
+  const tail = { ...EXAMPLE_DOC, segments: [{ ...ride, geometry: ride.geometry.slice(-5) }, walk] };
+  const { runs } = parseOg(new URLSearchParams(ogQuery(tail)));
   return new ImageResponse(
     (
       <div style={{ width: size.width, height: size.height, display: "flex", position: "relative", background: C.bg, color: C.ink }}>
@@ -33,7 +35,7 @@ export default function Image() {
             left: 80,
             top: 80,
             bottom: 80,
-            width: 540,
+            width: 560,
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
@@ -44,7 +46,7 @@ export default function Image() {
             {brand.name}
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ fontSize: 70, fontWeight: 700, lineHeight: 1.04, letterSpacing: -2 }}>{landing.headline}</div>
+            <div style={{ fontSize: 62, fontWeight: 700, lineHeight: 1.06, letterSpacing: -1.5 }}>{landing.headline}</div>
             <div style={{ marginTop: 28, fontSize: 30, lineHeight: 1.35, color: C.ink2 }}>{landing.subtext}</div>
           </div>
         </div>

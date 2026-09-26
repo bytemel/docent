@@ -2,7 +2,9 @@ import { ArrowRight, Play } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import How from "@/components/landing/How";
 import Problem from "@/components/landing/Problem";
+import RegisterOffline from "@/components/landing/RegisterOffline";
 import RouteSketch from "@/components/landing/RouteSketch";
+import SavedRoutes from "@/components/landing/SavedRoutes";
 import Travellers from "@/components/landing/Travellers";
 import PlayerClient from "@/components/player/PlayerClient";
 import { EXAMPLE_DOC } from "@/lib/example";
@@ -66,6 +68,8 @@ export default function Home() {
           </figure>
         </section>
 
+        <SavedRoutes />
+        <RegisterOffline />
         <Problem doc={EXAMPLE_DOC} link={exampleHref} chars={encoded.length} />
         <How doc={EXAMPLE_DOC} link={exampleHref} />
 

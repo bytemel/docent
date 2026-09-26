@@ -15,7 +15,7 @@ export function Mark({ className = "size-7" }: { className?: string }) {
 
 export function Wordmark() {
   return (
-    <Link href="/" className="inline-flex items-center gap-2 rounded-md font-semibold tracking-tight text-ink">
+    <Link href="/" className="inline-flex min-h-11 items-center gap-2 self-start rounded-md font-semibold tracking-tight text-ink">
       <Mark />
       <span className="text-lg">{brand.name}</span>
     </Link>

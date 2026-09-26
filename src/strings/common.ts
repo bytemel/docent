@@ -68,6 +68,15 @@ export const landing = {
   },
 };
 
+export const saved = {
+  title: "Your saved routes",
+  body: "Routes you have opened on this device. They stay here until you remove them.",
+  untitled: "Untitled route",
+  open: "Open",
+  meta: (distance: string, date: string) => `${distance}, opened ${date}`,
+  remove: (title: string) => `Remove ${title} from this device`,
+};
+
 export const viewer = {
   brokenTitle: "This link does not work",
   broken: "This route link is broken or incomplete. Ask the sender to share it again.",
