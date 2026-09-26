@@ -1,6 +1,7 @@
 import { SAY } from "@/strings/nav";
-import { cumulative, haversine, lineLength, pointAt, routeCoords } from "./geo";
+import { cumulative, formatDistance, haversine, lineLength, nearestOnLine, pointAt, routeCoords } from "./geo";
 import { MODES, type RoutingProfile } from "./modes";
+import type { RouteOption } from "./routing";
 import { detectTurns, hasTurns, segmentOffsets, turnWords } from "./steps";
 import type { LngLat, Mode, Segment, Step } from "./types";
 
@@ -359,4 +360,67 @@ export function createAnnouncer(route: NavRoute, activity: Activity, startAtM = 
       return SAY.inDistance(spokenDistance(dist), m.text);
     },
   };
+}
+
+export interface OptionView {
+  id: string;
+  distanceM: number;
+  timeS: number;
+  deltaM: number;
+  shortest: boolean;
+  fastest: boolean;
+}
+
+export function optionSeconds(opt: Pick<RouteOption, "distanceM" | "durationS">, activity: Activity): number {
+  if (activity === "drive" && opt.durationS > 0) return Math.round(opt.durationS);
+  return Math.round(opt.distanceM / (ACTIVITIES[activity].speedKmh / 3.6));
+}
+
+export function describeOptions(options: RouteOption[], activity: Activity): OptionView[] {
+  if (!options.length) return [];
+  const minD = Math.min(...options.map((o) => o.distanceM));
+  const times = options.map((o) => optionSeconds(o, activity));
+  const minT = Math.min(...times);
+  return options
+    .map((o, i) => ({
+      id: o.id,
+      distanceM: o.distanceM,
+      timeS: times[i],
+      deltaM: o.distanceM - minD,
+      shortest: o.distanceM === minD,
+      fastest: activity === "drive" ? times[i] === minT : o.distanceM === minD,
+    }))
+    .sort((a, b) => a.distanceM - b.distanceM);
+}
+
+export function defaultOption(options: RouteOption[], activity: Activity): RouteOption | null {
+  if (!options.length) return null;
+  const views = describeOptions(options, activity);
+  const pick =
+    activity === "drive"
+      ? [...views].sort((a, b) => a.timeS - b.timeS || a.distanceM - b.distanceM)[0]
+      : views[0];
+  return options.find((o) => o.id === pick.id) ?? options[0];
+}
+
+export function optionTag(view: OptionView): string {
+  return view.shortest ? SAY.shortest : `+${formatDistance(view.deltaM)}`;
+}
+
+export function tagPoint(option: RouteOption, others: RouteOption[]): LngLat {
+  const g = option.geometry;
+  const cum = cumulative(g);
+  const mid = pointAt(g, cum, (cum[cum.length - 1] ?? 0) / 2).pos;
+  if (!others.length || g.length < 3) return mid;
+  let best = mid;
+  let bestD = -1;
+  const step = Math.max(1, Math.floor(g.length / 60));
+  for (let i = step; i < g.length - step; i += step) {
+    const d = Math.min(...others.map((o) => nearestOnLine(g[i], o.geometry).d));
+    if (d > bestD + 1) {
+      bestD = d;
+      best = g[i];
+    }
+  }
+  return bestD > 15 ? best : mid;
 }

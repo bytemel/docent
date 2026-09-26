@@ -7,6 +7,15 @@ import type { LngLat } from "@/lib/types";
 
 export type Follow = "heading" | "north" | "off";
 
+export interface MapOption {
+  id: string;
+  geometry: LngLat[];
+  selected: boolean;
+  tag: string;
+  time: string;
+  at: LngLat;
+}
+
 export interface NavMapInit {
   container: HTMLElement;
   dark: boolean;
@@ -37,6 +46,27 @@ function pinEl(): HTMLElement {
   return el;
 }
 
+function tagEl(o: MapOption, onSelect: ((id: string) => void) | null): HTMLElement {
+  const el = document.createElement("button");
+  el.type = "button";
+  el.className = `rounded-[10px] border-[1.5px] px-2 py-1 text-left text-[13px] leading-tight font-bold shadow-float ${
+    o.selected ? "border-sign bg-sign text-sign-ink" : "border-line bg-surface text-ink"
+  }`;
+  el.setAttribute("aria-pressed", String(o.selected));
+  const a = document.createElement("span");
+  a.className = "block";
+  a.textContent = o.tag;
+  const b = document.createElement("span");
+  b.className = "num block font-semibold opacity-80";
+  b.textContent = o.time;
+  el.append(a, b);
+  el.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onSelect?.(o.id);
+  });
+  return el;
+}
+
 function meEl(): { el: HTMLElement; cone: HTMLElement } {
   const el = document.createElement("div");
   el.className = "relative flex size-16 items-center justify-center";
@@ -50,6 +80,8 @@ function meEl(): { el: HTMLElement; cone: HTMLElement } {
 export class NavMap {
   map: MLMap;
   private onUserMove: (() => void) | null = null;
+  private onOption: ((id: string) => void) | null = null;
+  private tags: Marker[] = [];
   private ready = false;
   private destroyed = false;
   private route: NavRoute | null = null;
@@ -83,7 +115,13 @@ export class NavMap {
     this.map.on("dragstart", userMove);
     this.map.on("zoomstart", userMove);
     this.map.on("rotatestart", userMove);
-    if (init.onClick) this.map.on("click", (e) => init.onClick?.([e.lngLat.lng, e.lngLat.lat]));
+    this.map.on("click", (e) => {
+      const hit = this.map.getLayer("nv-opt-hit")
+        ? this.map.queryRenderedFeatures(e.point, { layers: ["nv-opt-hit"] })[0]
+        : undefined;
+      if (hit && this.onOption) this.onOption(String(hit.properties?.id));
+      else init.onClick?.([e.lngLat.lng, e.lngLat.lat]);
+    });
     this.map.once("load", () => {
       if (this.destroyed) return;
       this.addLayers();
@@ -101,7 +139,43 @@ export class NavMap {
   private addLayers() {
     const map = this.map;
     const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#ffc61a";
+    map.addSource("nv-opt", { type: "geojson", data: EMPTY });
     map.addSource("nv-route", { type: "geojson", data: EMPTY });
+    const optWidth = ["interpolate", ["linear"], ["zoom"], 12, 5, 18, 12] as unknown as number;
+    map.addLayer({
+      id: "nv-opt-rest",
+      type: "line",
+      source: "nv-opt",
+      filter: ["==", ["get", "sel"], false],
+      layout: { "line-join": "round", "line-cap": "round" },
+      paint: { "line-color": ["get", "color"], "line-width": optWidth, "line-opacity": 0.5 },
+    });
+    map.addLayer({
+      id: "nv-opt-casing",
+      type: "line",
+      source: "nv-opt",
+      filter: ["==", ["get", "sel"], true],
+      layout: { "line-join": "round", "line-cap": "round" },
+      paint: {
+        "line-color": this.dark ? "#0d0f11" : "#ffffff",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 12, 8, 18, 18],
+      },
+    });
+    map.addLayer({
+      id: "nv-opt-sel",
+      type: "line",
+      source: "nv-opt",
+      filter: ["==", ["get", "sel"], true],
+      layout: { "line-join": "round", "line-cap": "round" },
+      paint: { "line-color": ["get", "color"], "line-width": optWidth },
+    });
+    map.addLayer({
+      id: "nv-opt-hit",
+      type: "line",
+      source: "nv-opt",
+      layout: { "line-join": "round", "line-cap": "round" },
+      paint: { "line-color": "#000000", "line-width": 28, "line-opacity": 0 },
+    });
     map.addSource("nv-acc", { type: "geojson", data: EMPTY });
     const layout = { "line-join": "round" as const, "line-cap": "round" as const };
     map.addLayer({
@@ -164,6 +238,37 @@ export class NavMap {
       duration: 600,
       bearing: 0,
       pitch: 0,
+    });
+  }
+
+  setOptions(list: MapOption[], color: string, onSelect: ((id: string) => void) | null) {
+    this.onOption = onSelect;
+    this.whenReady(() => {
+      const ordered = [...list].sort((a, b) => Number(a.selected) - Number(b.selected));
+      (this.map.getSource("nv-opt") as GeoJSONSource | undefined)?.setData({
+        type: "FeatureCollection",
+        features: ordered.map((o) => ({
+          type: "Feature" as const,
+          properties: { id: o.id, sel: o.selected, color },
+          geometry: { type: "LineString" as const, coordinates: o.geometry },
+        })),
+      });
+      this.tags.forEach((t) => t.remove());
+      this.tags = list.length > 1 ? list.map((o) => new Marker({ element: tagEl(o, onSelect) }).setLngLat(o.at).addTo(this.map)) : [];
+    });
+  }
+
+  fitPoints(pts: LngLat[]) {
+    if (!pts.length) return;
+    this.whenReady(() => {
+      const b = bbox(pts);
+      this.map.fitBounds(new LngLatBounds([b[0], b[1]], [b[2], b[3]]), {
+        padding: this.init.padding(),
+        maxZoom: 16.5,
+        duration: 600,
+        bearing: 0,
+        pitch: 0,
+      });
     });
   }
 
@@ -231,6 +336,7 @@ export class NavMap {
     this.destroyed = true;
     this.dest?.remove();
     this.me?.marker.remove();
+    this.tags.forEach((t) => t.remove());
     this.map.remove();
   }
 }

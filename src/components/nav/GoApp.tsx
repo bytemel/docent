@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Car,
+  Check,
   MapPin,
   NavigationArrow,
   PersonSimpleBike,
@@ -13,9 +14,20 @@ import {
 } from "@phosphor-icons/react";
 import PlaceSearch from "@/components/editor/PlaceSearch";
 import VoiceToggle from "@/components/ui/VoiceToggle";
-import { formatDistance, routeCoords } from "@/lib/geo";
+import { formatDistance, formatDuration, routeCoords } from "@/lib/geo";
 import { prefersDark } from "@/lib/map";
-import { ACTIVITY_ORDER, buildNavRoute, type Activity } from "@/lib/nav";
+import { MODES } from "@/lib/modes";
+import {
+  ACTIVITIES,
+  ACTIVITY_ORDER,
+  buildNavRoute,
+  defaultOption,
+  describeOptions,
+  optionTag,
+  tagPoint,
+  type Activity,
+} from "@/lib/nav";
+import type { RouteOption } from "@/lib/routing";
 import type { LngLat, RouteDoc } from "@/lib/types";
 import { getVoice } from "@/lib/voice";
 import { brand } from "@/strings/common";
@@ -23,7 +35,7 @@ import { ACTIVITY_LABEL, NAV } from "@/strings/nav";
 import { Mark } from "@/app/r/mark";
 import type { NavMap } from "./navMap";
 import NavScreen from "./NavScreen";
-import { planTrip, type Dest, type Trip } from "./plan";
+import { fetchOptions, optionsTarget, planTrip, type Dest, type Trip } from "./plan";
 
 export interface GoAppProps {
   to: Dest | null;
@@ -58,11 +70,98 @@ export default function GoApp({ to, doc, badDoc }: GoAppProps) {
     to ? [to.lng, to.lat] : doc ? routeCoords(doc.segments)[0] : undefined,
   );
 
+  const [here, setHere] = useState<{ pos: LngLat; acc: number } | null>(null);
+  const [locErr, setLocErr] = useState(false);
+  const [optResult, setOptResult] = useState<{ key: string; options: RouteOption[]; failed: boolean } | null>(null);
+  const [picked, setPicked] = useState<{ key: string; id: string } | null>(null);
+  const locating = useRef(false);
+  const fitted = useRef("");
+
+  const wantOptions = Boolean(dest || doc) && !trip;
+  useEffect(() => {
+    if (!wantOptions || here || locating.current || !navigator.geolocation) return;
+    locating.current = true;
+    navigator.geolocation.getCurrentPosition(
+      (p) => {
+        locating.current = false;
+        setHere({ pos: [p.coords.longitude, p.coords.latitude], acc: p.coords.accuracy });
+      },
+      () => {
+        locating.current = false;
+        setLocErr(true);
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 30000 },
+    );
+  }, [wantOptions, here]);
+
+  const profile = ACTIVITIES[activity].profile;
+  const target = useMemo(() => (here ? optionsTarget(dest, doc, here.pos) : null), [here, dest, doc]);
+  const optKey =
+    here && target
+      ? `${target.lng.toFixed(5)},${target.lat.toFixed(5)}|${profile}|${here.pos[0].toFixed(4)},${here.pos[1].toFixed(4)}`
+      : "";
+
+  useEffect(() => {
+    if (!optKey || !here || !target || trip) return;
+    const ctrl = new AbortController();
+    fetchOptions(here.pos, target, profile, ctrl.signal)
+      .then((options) => setOptResult({ key: optKey, options, failed: false }))
+      .catch(() => {
+        if (!ctrl.signal.aborted) setOptResult({ key: optKey, options: [], failed: true });
+      });
+    return () => ctrl.abort();
+  }, [optKey, here, target, profile, trip]);
+
+  const current = optResult && optResult.key === optKey ? optResult : null;
+  const options = useMemo(() => current?.options ?? [], [current]);
+  const views = useMemo(() => describeOptions(options, activity), [options, activity]);
+  const selKey = `${optKey}|${activity}`;
+  const selectedId =
+    picked && picked.key === selKey && options.some((o) => o.id === picked.id)
+      ? picked.id
+      : (defaultOption(options, activity)?.id ?? null);
+  const selected = options.find((o) => o.id === selectedId) ?? null;
+
+  useEffect(() => {
+    if (map && here && !trip) map.setMe(here.pos, here.acc, null);
+  }, [map, here, trip]);
+
+  useEffect(() => {
+    if (!map) return;
+    if (trip || !options.length) {
+      map.setOptions([], "", null);
+      return;
+    }
+    map.setOptions(
+      views.map((v) => {
+        const o = options.find((x) => x.id === v.id)!;
+        return {
+          id: o.id,
+          geometry: o.geometry,
+          selected: o.id === selectedId,
+          tag: optionTag(v),
+          time: formatDuration(v.timeS),
+          at: tagPoint(o, options.filter((x) => x !== o)),
+        };
+      }),
+      MODES[ACTIVITIES[activity].mode].color,
+      (id) => setPicked({ key: selKey, id }),
+    );
+    if (fitted.current !== optKey) {
+      fitted.current = optKey;
+      map.fitPoints([
+        ...options.flatMap((o) => o.geometry),
+        ...(here ? [here.pos] : []),
+        ...(doc ? routeCoords(doc.segments) : []),
+      ]);
+    }
+  }, [map, trip, options, views, selectedId, activity, selKey, optKey, here, doc]);
+
   const planPad = useCallback((): Pad => {
     const w = window.innerWidth;
     const h = panelEl.current?.offsetHeight ?? 0;
     if (w >= 768) return { top: 48, bottom: 48, left: 448, right: 48 };
-    return { top: 32, bottom: Math.min(h + 24, window.innerHeight - 160), left: 24, right: 24 };
+    return { top: 32, bottom: Math.min(h, window.innerHeight * 0.62) + 24, left: 32, right: 32 };
   }, []);
 
   useEffect(() => {
@@ -121,7 +220,7 @@ export default function GoApp({ to, doc, badDoc }: GoAppProps) {
         setBusy("routing");
         try {
           const here: LngLat = [pos.coords.longitude, pos.coords.latitude];
-          const t = await planTrip({ here, activity, dest, doc, joined: false, baseM: 0 });
+          const t = await planTrip({ here, activity, dest, doc, joined: false, baseM: 0, geometry: selected?.geometry });
           setFirstFix(pos);
           setTrip(t);
         } catch {
@@ -174,7 +273,7 @@ export default function GoApp({ to, doc, badDoc }: GoAppProps) {
         <section
           ref={panelEl}
           aria-label={NAV.pageTitle}
-          className="panel absolute inset-x-0 bottom-0 z-10 max-h-[78dvh] overflow-y-auto rounded-b-none p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] md:inset-x-auto md:top-4 md:bottom-auto md:left-4 md:max-h-[calc(100dvh-2rem)] md:w-[400px] md:rounded-b-[18px]"
+          className="panel absolute inset-x-0 bottom-0 z-10 max-h-[62dvh] overflow-y-auto rounded-b-none p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] md:inset-x-auto md:top-4 md:bottom-auto md:left-4 md:max-h-[calc(100dvh-2rem)] md:w-[400px] md:rounded-b-[18px]"
         >
           <div className="flex items-center justify-between gap-3">
             <Link href="/" aria-label={brand.name} className="rounded-md">
@@ -248,6 +347,64 @@ export default function GoApp({ to, doc, badDoc }: GoAppProps) {
               })}
             </div>
           </fieldset>
+          {dest || doc ? (
+            <div className="mt-5">
+              <h2 className="text-sm font-semibold text-ink-2">{doc ? NAV.routesTo : NAV.routes}</h2>
+              {views.length ? (
+                <div role="radiogroup" aria-label={doc ? NAV.routesTo : NAV.routes} className="mt-2 flex flex-col gap-2">
+                  {views.map((v) => {
+                    const on = v.id === selectedId;
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        onClick={() => setPicked({ key: selKey, id: v.id })}
+                        className={`flex w-full items-center gap-3 rounded-[14px] border-[1.5px] p-3 text-left ${on ? "border-sign bg-surface-2" : "border-line bg-surface"}`}
+                      >
+                        <span
+                          className={`flex size-6 shrink-0 items-center justify-center rounded-full border-[1.5px] ${on ? "border-sign bg-sign text-sign-ink" : "border-line"}`}
+                          aria-hidden
+                        >
+                          {on ? <Check size={14} weight="bold" /> : null}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="num block text-[20px] leading-tight font-bold">{formatDuration(v.timeS)}</span>
+                          <span className="block text-[15px] text-ink-2">
+                            {formatDistance(v.distanceM)}
+                            {v.deltaM >= 10 ? `, ${optionTag(v)}` : ""}
+                          </span>
+                        </span>
+                        <span className="flex shrink-0 flex-col items-end gap-1">
+                          {v.shortest ? (
+                            <span className="rounded-[8px] bg-accent px-2 py-0.5 text-[12px] font-bold text-accent-ink">
+                              {NAV.shortest}
+                            </span>
+                          ) : null}
+                          {v.fastest ? (
+                            <span className="rounded-[8px] border-[1.5px] border-line px-2 py-0.5 text-[12px] font-bold text-ink-2">
+                              {NAV.fastest}
+                            </span>
+                          ) : null}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-ink-3" role="status">
+                  {locErr
+                    ? NAV.routesNeedLocation
+                    : here && doc && !target
+                      ? NAV.atStartAlready
+                      : current?.failed
+                        ? NAV.routesFailed
+                        : NAV.findingRoutes}
+                </p>
+              )}
+            </div>
+          ) : null}
           <button
             type="button"
             className="btn btn-primary btn-lg mt-5 w-full"

@@ -47,6 +47,15 @@ export const NAV = {
   loadingMap: "Loading the map",
   badDoc: "That shared route link is broken. You can still search for a place.",
   keepAwake: "Your screen stays on while you navigate.",
+  routes: "Routes",
+  routesTo: "Routes to the start",
+  findingRoutes: "Finding routes from where you are",
+  routesFailed: "We could not load routes from here. Start will still find the way.",
+  routesNeedLocation: "Allow location to see the routes from where you are.",
+  fastest: "Fastest",
+  shortest: "Shortest",
+  optionLabel: (time: string, dist: string) => `${time}, ${dist}`,
+  atStartAlready: "You are at the start of the route.",
 };
 
 export const ACTIVITY_LABEL = {
@@ -71,6 +80,7 @@ export const SAY = {
   arriveAt: (label: string) => `Arrive at ${label}`,
   destination: "your destination",
   rerouting: "Rerouting.",
+  shortest: "Shortest",
   metres: (n: number) => `${n} metres`,
   kilometres: (n: string) => `${n} kilometres`,
   oneKilometre: "1 kilometre",

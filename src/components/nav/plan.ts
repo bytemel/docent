@@ -1,8 +1,16 @@
 import { haversine, lineLength } from "@/lib/geo";
 import { findLandmarks } from "@/lib/landmarks";
-import { estimateSeconds } from "@/lib/modes";
-import { ACTIVITIES, buildNavRoute, needsApproach, type Activity, type NavRoute, type RoutePart } from "@/lib/nav";
-import { routeLeg } from "@/lib/routing";
+import { estimateSeconds, type RoutingProfile } from "@/lib/modes";
+import {
+  ACTIVITIES,
+  buildNavRoute,
+  defaultOption,
+  needsApproach,
+  type Activity,
+  type NavRoute,
+  type RoutePart,
+} from "@/lib/nav";
+import { routeOptions, type RouteOption } from "@/lib/routing";
 import { buildSteps } from "@/lib/steps";
 import type { Landmark, LngLat, Mode, RouteDoc, Segment } from "@/lib/types";
 
@@ -25,6 +33,7 @@ interface PlanInput {
   doc: RouteDoc | null;
   joined: boolean;
   baseM: number;
+  geometry?: LngLat[] | null;
   signal?: AbortSignal;
 }
 
@@ -67,10 +76,25 @@ function segment(id: string, mode: Mode, here: LngLat, to: Dest, road: LngLat[])
 
 async function leg(input: PlanInput, id: string, to: Dest): Promise<{ seg: Segment; landmarks: Landmark[] }> {
   const info = ACTIVITIES[input.activity];
-  const road = await routeLeg(info.profile, [input.here, [to.lng, to.lat]], input.signal);
-  const seg = segment(id, info.mode, input.here, to, road.geometry);
+  let road = input.geometry && input.geometry.length >= 2 ? input.geometry : null;
+  if (!road) {
+    const best = defaultOption(await routeOptions(info.profile, [input.here, [to.lng, to.lat]], input.signal), input.activity);
+    if (!best) throw new Error("No route");
+    road = best.geometry;
+  }
+  const seg = segment(id, info.mode, input.here, to, road);
   const landmarks = await withTimeout(findLandmarks([seg], { signal: input.signal, max: 10 }), LANDMARK_WAIT_MS, []);
   return { seg, landmarks };
+}
+
+export function optionsTarget(dest: Dest | null, doc: RouteDoc | null, here: LngLat): Dest | null {
+  if (!doc) return dest;
+  const first = doc.segments[0].from;
+  return needsApproach(here, [first.lng, first.lat]) ? { lng: first.lng, lat: first.lat, label: first.label ?? "" } : null;
+}
+
+export function fetchOptions(here: LngLat, to: Dest, profile: RoutingProfile, signal?: AbortSignal): Promise<RouteOption[]> {
+  return routeOptions(profile, [here, [to.lng, to.lat]], signal);
 }
 
 export function docEnd(doc: RouteDoc): Dest {
