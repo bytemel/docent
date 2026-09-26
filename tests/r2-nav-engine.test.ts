@@ -251,8 +251,8 @@ describe("helpers", () => {
     expect(rerouteDue(92_000, 85_000, 100_000)).toBe(false);
   });
 
-  it("needs an approach only beyond 80 m", () => {
-    expect(needsApproach(m(0, 0), m(60, 0))).toBe(false);
+  it("needs an approach only beyond the off route distance", () => {
+    expect(needsApproach(m(0, 0), m(30, 0))).toBe(false);
     expect(needsApproach(m(0, 0), m(120, 0))).toBe(true);
   });
 

@@ -95,7 +95,10 @@ export default function GoApp({ to, doc, badDoc }: GoAppProps) {
   }, [wantOptions, here]);
 
   const profile = ACTIVITIES[activity].profile;
-  const target = useMemo(() => (here ? optionsTarget(dest, doc, here.pos) : null), [here, dest, doc]);
+  const target = useMemo(
+    () => (here ? optionsTarget(dest, doc, here.pos, activity) : null),
+    [here, dest, doc, activity],
+  );
   const optKey =
     here && target
       ? `${target.lng.toFixed(5)},${target.lat.toFixed(5)}|${profile}|${here.pos[0].toFixed(4)},${here.pos[1].toFixed(4)}`
