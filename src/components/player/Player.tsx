@@ -200,7 +200,9 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
   }, [embed]);
 
   useEffect(() => {
-    if (variant === "preview") playRef.current?.focus();
+    if (variant !== "preview") return;
+    const id = requestAnimationFrame(() => playRef.current?.focus());
+    return () => cancelAnimationFrame(id);
   }, [variant]);
 
   useEffect(() => {
