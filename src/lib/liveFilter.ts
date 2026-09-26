@@ -1,4 +1,4 @@
-import { cumulative, haversine, nearestOnLine, pointAt } from "./geo";
+import { cumulative, distanceToSegment, haversine, nearestOnLine, pointAt } from "./geo";
 import type { LiveFix } from "./live";
 import { MODES } from "./modes";
 import type { LngLat, Mode } from "./types";
@@ -113,14 +113,31 @@ export function createLiveFilter(opts: FilterOptions = {}): LiveFilter {
   };
 }
 
+export interface SnapRange {
+  fromM: number;
+  toM: number;
+}
+
+export function nearestInRange(p: LngLat, coords: LngLat[], cum: number[], range: SnapRange): { d: number; atM: number } {
+  let best = { d: Infinity, atM: 0 };
+  for (let i = 1; i < coords.length; i++) {
+    if (cum[i] < range.fromM || cum[i - 1] > range.toM) continue;
+    const { d, t } = distanceToSegment(p, coords[i - 1], coords[i]);
+    const atM = Math.min(range.toM, Math.max(range.fromM, cum[i - 1] + t * (cum[i] - cum[i - 1])));
+    if (d < best.d) best = { d, atM };
+  }
+  return best.d === Infinity ? nearestOnLine(p, coords, cum) : best;
+}
+
 export function snapToRoute(
   fix: Pick<LiveFix, "lng" | "lat" | "acc">,
   coords: LngLat[],
   cum: number[] = cumulative(coords),
+  range?: SnapRange,
 ): Snap {
   const raw: LngLat = [fix.lng, fix.lat];
   if (coords.length === 0) return { pos: raw, atM: 0, offRouteM: Infinity, snapped: false };
-  const near = nearestOnLine(raw, coords, cum);
+  const near = range ? nearestInRange(raw, coords, cum, range) : nearestOnLine(raw, coords, cum);
   const snapped = near.d <= Math.max(FILTER.snapMinM, fix.acc);
   return { pos: snapped ? pointAt(coords, cum, near.atM).pos : raw, atM: near.atM, offRouteM: near.d, snapped };
 }

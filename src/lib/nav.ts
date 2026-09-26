@@ -1,5 +1,14 @@
 import { SAY } from "@/strings/nav";
-import { cumulative, formatDistance, haversine, lineLength, nearestOnLine, pointAt, routeCoords } from "./geo";
+import {
+  cumulative,
+  distanceToSegment,
+  formatDistance,
+  haversine,
+  lineLength,
+  nearestOnLine,
+  pointAt,
+  routeCoords,
+} from "./geo";
 import { MODES, type RoutingProfile } from "./modes";
 import type { RouteOption } from "./routing";
 import { detectTurns, hasTurns, segmentOffsets, turnWords } from "./steps";
@@ -28,7 +37,6 @@ export const ACTIVITIES: Record<Activity, ActivityInfo> = {
 };
 
 export const REROUTE = { afterMs: 8000, everyMs: 20000 } as const;
-export const APPROACH_M = 80;
 const PASS_M = 5;
 const STEP_MATCH_M = 25;
 
@@ -74,6 +82,7 @@ export interface NavRoute {
 export interface RoutePart {
   segments: Segment[];
   steps: Step[];
+  rejoin?: boolean;
 }
 
 export interface NavState {
@@ -141,8 +150,55 @@ export function parseTo(raw: string | undefined | null): { lng: number; lat: num
   return { lng, lat, label };
 }
 
-export function needsApproach(here: LngLat, start: LngLat): boolean {
-  return haversine(here, start) > APPROACH_M;
+export function needsApproach(here: LngLat, start: LngLat, activity: Activity = "walk"): boolean {
+  return haversine(here, start) > ACTIVITIES[activity].offRouteM;
+}
+
+export function snapWindow(progressM: number, activity: Activity): { fromM: number; toM: number } {
+  return { fromM: progressM - 30, toM: progressM + (activity === "drive" ? 600 : 250) };
+}
+
+export function rejoinAt(coords: LngLat[], cum: number[], fromM: number, here: LngLat): { atM: number; pos: LngLat; d: number } {
+  let best = { atM: fromM, d: Infinity };
+  for (let i = 1; i < coords.length; i++) {
+    if (cum[i] < fromM) continue;
+    const a = cum[i - 1] < fromM ? pointAt(coords, cum, fromM).pos : coords[i - 1];
+    const start = Math.max(cum[i - 1], fromM);
+    const { d, t } = distanceToSegment(here, a, coords[i]);
+    if (d < best.d) best = { d, atM: start + t * (cum[i] - start) };
+  }
+  return { ...best, pos: pointAt(coords, cum, best.atM).pos };
+}
+
+export function trimPart(part: RoutePart, fromM: number): RoutePart {
+  const offsets = segmentOffsets(part.segments);
+  const segments: Segment[] = [];
+  part.segments.forEach((seg, i) => {
+    const len = lineLength(seg.geometry);
+    const start = offsets[i];
+    if (start + len <= fromM) return;
+    if (start >= fromM) {
+      segments.push(seg);
+      return;
+    }
+    const cum = cumulative(seg.geometry);
+    const cut = fromM - start;
+    const cutAt = pointAt(seg.geometry, cum, cut).pos;
+    const geometry: LngLat[] = [cutAt, ...seg.geometry.filter((_, k) => cum[k] > cut + 0.5)];
+    const distanceM = lineLength(geometry);
+    segments.push({
+      ...seg,
+      id: `${seg.id}-rest`,
+      from: { lng: cutAt[0], lat: cutAt[1] },
+      geometry: geometry.length >= 2 ? geometry : [cutAt, seg.geometry[seg.geometry.length - 1]],
+      distanceM,
+      durationS: Math.round((seg.durationS * distanceM) / Math.max(1, len)),
+    });
+  });
+  const steps = part.steps
+    .filter((st) => st.kind !== "start" && st.atM >= fromM + PASS_M)
+    .map((st) => ({ ...st, atM: st.atM - fromM }));
+  return { segments, steps, rejoin: true };
 }
 
 export function rerouteDue(offSince: number | null, lastAt: number, now: number): boolean {
@@ -237,8 +293,8 @@ export function buildNavRoute(parts: RoutePart[], opts: { arrivalNote?: string; 
       maneuvers.push({
         kind: "join",
         atM: dep.atM,
-        text: where ? SAY.joinAt(where) : SAY.join,
-        now: `${SAY.atStart} ${dep.text}.`,
+        text: part.rejoin ? SAY.rejoin : where ? SAY.joinAt(where) : SAY.join,
+        now: part.rejoin ? SAY.backOnRoute : `${SAY.atStart} ${dep.text}.`,
         arrow: "straight",
         pos: prevArrive?.pos ?? dep.pos,
       });
@@ -288,7 +344,7 @@ export function navProgress(
     etaS: Math.round(etaS),
     paceSPerKm: doneM >= 50 && elapsedS > 0 ? elapsedS / (doneM / 1000) : null,
     offRoute,
-    arrived: !offRoute && leftM <= info.arriveM,
+    arrived: !offRoute && leftM <= info.arriveM && atM >= route.totalM / 2,
   };
 }
 

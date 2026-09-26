@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { NAV } from "@/strings/nav";
 import type { GoAppProps } from "./GoApp";
+import GoBoundary from "./GoBoundary";
 
 const GoApp = dynamic(() => import("./GoApp"), {
   ssr: false,
@@ -14,5 +15,9 @@ const GoApp = dynamic(() => import("./GoApp"), {
 });
 
 export default function GoClient(props: GoAppProps) {
-  return <GoApp {...props} />;
+  return (
+    <GoBoundary>
+      <GoApp {...props} />
+    </GoBoundary>
+  );
 }

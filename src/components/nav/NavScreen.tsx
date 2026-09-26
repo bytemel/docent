@@ -12,6 +12,7 @@ import {
   formatPace,
   navProgress,
   rerouteDue,
+  snapWindow,
   startAnnouncement,
   type Activity,
   type NavState,
@@ -105,13 +106,17 @@ export default function NavScreen({ trip, activity, dest, doc, firstFix, map, se
       heading: null as number | null,
       offSince: null as number | null,
       lastReroute: 0,
-      joined: trip.joinM === null,
+      joined: trip.docStartM === 0,
       atM: 0,
+      progM: 0,
+      docM: trip.docOffsetM,
       arrived: false,
       busy: false,
       stopped: false,
     };
     const info = ACTIVITIES[activity];
+    let watch = -1;
+    let lock: WakeLockSentinel | null = null;
     map.setRoute(trip.route);
     map.setDest(null);
     map.setFollow("heading");
@@ -119,18 +124,19 @@ export default function NavScreen({ trip, activity, dest, doc, firstFix, map, se
       map.setFollow("off");
       setFollow("off");
     });
-    repeatRef.current = () => getVoice().speak(s.announcer.current(s.atM), { interrupt: true });
+    repeatRef.current = () => getVoice().speak(s.announcer.current(s.atM), { interrupt: true, force: true });
 
     const reroute = (here: LngLat, doneM: number) => {
       s.busy = true;
       s.lastReroute = Date.now();
       setRerouting(true);
       speak(SAY.rerouting, true);
-      planTrip({ here, activity, dest, doc, joined: s.joined, baseM: doneM })
+      planTrip({ here, activity, dest, doc, joined: s.joined, baseM: doneM, docFromM: s.docM })
         .then((t) => {
-          if (s.stopped) return;
+          if (s.stopped || s.arrived) return;
           s.trip = t;
-          s.joined = s.joined || t.joinM === null;
+          s.joined = s.joined || t.docStartM === 0;
+          s.progM = 0;
           s.announcer = createAnnouncer(t.route, activity);
           docRef.current = t.doc;
           map.setRoute(t.route);
@@ -144,24 +150,52 @@ export default function NavScreen({ trip, activity, dest, doc, firstFix, map, se
         });
     };
 
+    const finish = () => {
+      s.arrived = true;
+      navigator.geolocation.clearWatch(watch);
+      lock?.release().catch(() => {});
+      lock = null;
+      const share = shareRef.current;
+      if (share) setTimeout(() => share.stop().catch(() => {}), 1500);
+    };
+
     const onFix = (raw: LiveFix, first = false) => {
-      if (s.stopped) return;
+      if (s.stopped || s.arrived) return;
       shareRef.current?.send(raw);
       setLastFixAt(Date.now());
       const f = s.filter.push(raw);
       if (!f) return;
       setWeak(f.acc > 60);
       const route = s.trip.route;
-      const snap = snapToRoute(f, route.coords, route.cum);
+      const wide = s.offSince !== null && Date.now() - s.offSince > 4000;
+      const snap = snapToRoute(f, route.coords, route.cum, wide ? undefined : snapWindow(s.progM, activity));
       const pos: LngLat = snap.snapped ? snap.pos : [f.lng, f.lat];
       if (raw.heading !== null && (raw.speed ?? 0) > 0.7) s.heading = raw.heading;
       else if (s.lastPos && haversine(s.lastPos, pos) > 6) s.heading = bearing(s.lastPos, pos);
       if (!s.lastPos || haversine(s.lastPos, pos) > 6) s.lastPos = pos;
       const st = navProgress(route, { atM: snap.atM, offRouteM: snap.offRouteM, acc: f.acc }, activity, (Date.now() - startedAt) / 1000);
       s.atM = snap.atM;
-      if (!s.joined && s.trip.joinM !== null && snap.snapped && snap.atM >= s.trip.joinM - info.arriveM) s.joined = true;
+      if (snap.snapped) s.progM = snap.atM;
+      const docStart = s.trip.docStartM;
+      if (docStart !== null && snap.snapped && snap.atM >= docStart - info.arriveM) {
+        s.joined = true;
+        s.docM = Math.max(s.docM, s.trip.docOffsetM + snap.atM - docStart);
+      }
       map.setMe(pos, f.acc, s.heading);
       map.track(pos, s.heading, ZOOM[activity]);
+      const end = route.coords[route.coords.length - 1];
+      const atEnd =
+        !first && snap.atM >= route.totalM / 2 && !!end && haversine([f.lng, f.lat], end) <= info.arriveM + Math.min(f.acc, 20);
+      if (st.arrived || atEnd) {
+        const last = route.maneuvers[route.maneuvers.length - 1];
+        s.announcer.update(route.totalM);
+        speak(last.now, true);
+        map.setFollow("off");
+        finish();
+        setArrived(true);
+        setView(st);
+        return;
+      }
       if (first) {
         s.announcer = createAnnouncer(route, activity, snap.atM);
         speak(startAnnouncement(route, activity, snap.atM), true);
@@ -172,21 +206,11 @@ export default function NavScreen({ trip, activity, dest, doc, firstFix, map, se
         s.offSince ??= Date.now();
         if (rerouteDue(s.offSince, s.lastReroute, Date.now())) reroute([f.lng, f.lat], st.doneM);
       }
-      const end = route.coords[route.coords.length - 1];
-      const atEnd = end && haversine([f.lng, f.lat], end) <= info.arriveM + Math.min(f.acc, 20);
-      if ((st.arrived || atEnd) && !s.arrived) {
-        s.arrived = true;
-        const last = route.maneuvers[route.maneuvers.length - 1];
-        s.announcer.update(route.totalM);
-        speak(last.now, true);
-        map.setFollow("off");
-        setArrived(true);
-      }
       setView(st);
     };
 
     onFix(toFix(firstFix), true);
-    const watch = navigator.geolocation.watchPosition(
+    watch = navigator.geolocation.watchPosition(
       (p) => onFix(toFix(p)),
       (err) => {
         if (err.code === err.PERMISSION_DENIED) setDenied(true);
@@ -194,12 +218,12 @@ export default function NavScreen({ trip, activity, dest, doc, firstFix, map, se
       { enableHighAccuracy: true, maximumAge: 1000, timeout: 30000 },
     );
 
-    let lock: WakeLockSentinel | null = null;
     const acquire = () => {
+      if (s.arrived) return;
       navigator.wakeLock
         ?.request("screen")
         .then((l) => {
-          if (s.stopped) l.release().catch(() => {});
+          if (s.stopped || s.arrived) l.release().catch(() => {});
           else lock = l;
         })
         .catch(() => {});
@@ -222,6 +246,7 @@ export default function NavScreen({ trip, activity, dest, doc, firstFix, map, se
       document.removeEventListener("visibilitychange", onVisible);
       clearInterval(tick);
       lock?.release().catch(() => {});
+      shareRef.current?.stop().catch(() => {});
       map.setUserMove(null);
       getVoice().cancel();
     };
