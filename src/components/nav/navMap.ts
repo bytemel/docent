@@ -41,7 +41,7 @@ function circle(center: LngLat, radiusM: number): number[][] {
 
 function pinEl(): HTMLElement {
   const el = document.createElement("span");
-  el.className = "block size-6 rounded-full border-[4px] border-sign bg-accent shadow-float";
+  el.className = "block size-7 rounded-[9px] border-[4px] border-accent bg-sign shadow-float";
   el.setAttribute("aria-hidden", "true");
   return el;
 }

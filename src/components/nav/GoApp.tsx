@@ -126,37 +126,6 @@ export default function GoApp({ to, doc, badDoc }: GoAppProps) {
     if (map && here && !trip) map.setMe(here.pos, here.acc, null);
   }, [map, here, trip]);
 
-  useEffect(() => {
-    if (!map) return;
-    if (trip || !options.length) {
-      map.setOptions([], "", null);
-      return;
-    }
-    map.setOptions(
-      views.map((v) => {
-        const o = options.find((x) => x.id === v.id)!;
-        return {
-          id: o.id,
-          geometry: o.geometry,
-          selected: o.id === selectedId,
-          tag: optionTag(v),
-          time: formatDuration(v.timeS),
-          at: tagPoint(o, options.filter((x) => x !== o)),
-        };
-      }),
-      MODES[ACTIVITIES[activity].mode].color,
-      (id) => setPicked({ key: selKey, id }),
-    );
-    if (fitted.current !== optKey) {
-      fitted.current = optKey;
-      map.fitPoints([
-        ...options.flatMap((o) => o.geometry),
-        ...(here ? [here.pos] : []),
-        ...(doc ? routeCoords(doc.segments) : []),
-      ]);
-    }
-  }, [map, trip, options, views, selectedId, activity, selKey, optKey, here, doc]);
-
   const planPad = useCallback((): Pad => {
     const w = window.innerWidth;
     const h = panelEl.current?.offsetHeight ?? 0;
@@ -205,6 +174,33 @@ export default function GoApp({ to, doc, badDoc }: GoAppProps) {
     map.setRoute(null);
     map.setDest(dest ? [dest.lng, dest.lat] : null, Boolean(dest));
   }, [map, dest, doc, trip]);
+
+  useEffect(() => {
+    if (!map) return;
+    if (trip || !options.length) {
+      map.setOptions([], "", null);
+      return;
+    }
+    map.setOptions(
+      views.map((v) => {
+        const o = options.find((x) => x.id === v.id)!;
+        return {
+          id: o.id,
+          geometry: o.geometry,
+          selected: o.id === selectedId,
+          tag: optionTag(v),
+          time: formatDuration(v.timeS),
+          at: tagPoint(o, options.filter((x) => x !== o)),
+        };
+      }),
+      MODES[ACTIVITIES[activity].mode].color,
+      (id) => setPicked({ key: selKey, id }),
+    );
+    if (fitted.current !== optKey) {
+      fitted.current = optKey;
+      map.fitPoints([...options.flatMap((o) => o.geometry), ...(here ? [here.pos] : [])]);
+    }
+  }, [map, trip, options, views, selectedId, activity, selKey, optKey, here]);
 
   const start = () => {
     setError(null);
@@ -273,154 +269,158 @@ export default function GoApp({ to, doc, badDoc }: GoAppProps) {
         <section
           ref={panelEl}
           aria-label={NAV.pageTitle}
-          className="panel absolute inset-x-0 bottom-0 z-10 max-h-[62dvh] overflow-y-auto rounded-b-none p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] md:inset-x-auto md:top-4 md:bottom-auto md:left-4 md:max-h-[calc(100dvh-2rem)] md:w-[400px] md:rounded-b-[18px]"
+          className="panel absolute inset-x-0 bottom-0 z-10 flex max-h-[62dvh] flex-col overflow-hidden rounded-b-none md:inset-x-auto md:top-4 md:bottom-auto md:left-4 md:max-h-[calc(100dvh-2rem)] md:w-[400px] md:rounded-b-[18px]"
         >
-          <div className="flex items-center justify-between gap-3">
-            <Link href="/" aria-label={brand.name} className="rounded-md">
-              <Mark className="size-8" />
-            </Link>
-            <VoiceToggle />
-          </div>
-          {doc ? (
-            <div className="mt-4">
-              <h1 className="text-[28px] leading-[1.05] font-extrabold tracking-[-0.02em] text-balance">
-                {doc.title.trim() || NAV.sharedRoute}
-              </h1>
-              <p className="mt-2 text-[15px] text-ink-2">
-                {[docStart, docEnd].filter(Boolean).join(" to ")}
-                {docStart || docEnd ? ", " : ""}
-                {formatDistance(docLength)}
-              </p>
-              <p className="mt-2 text-[15px] text-ink-3">{NAV.guideToStart}</p>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-5 pb-4">
+            <div className="flex items-center justify-between gap-3">
+              <Link href="/" aria-label={brand.name} className="rounded-md">
+                <Mark className="size-8" />
+              </Link>
+              <VoiceToggle />
             </div>
-          ) : (
-            <div className="mt-4">
-              <h1 className="text-[28px] leading-[1.05] font-extrabold tracking-[-0.02em]">{NAV.heading}</h1>
-              <div className="mt-3">
-                {dest ? (
-                  <div className="flex items-center gap-3 rounded-[14px] border-[1.5px] border-line p-3">
-                    <MapPin size={22} weight="bold" aria-hidden className="shrink-0 text-ink-2" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm text-ink-3">{NAV.to}</span>
-                      <span className="block truncate font-bold">
-                        {dest.label || `${NAV.droppedPin}, ${dest.lat.toFixed(5)}, ${dest.lng.toFixed(5)}`}
+            {doc ? (
+              <div className="mt-4">
+                <h1 className="text-[28px] leading-[1.05] font-extrabold tracking-[-0.02em] text-balance">
+                  {doc.title.trim() || NAV.sharedRoute}
+                </h1>
+                <p className="mt-2 text-[15px] text-ink-2">
+                  {[docStart, docEnd].filter(Boolean).join(" to ")}
+                  {docStart || docEnd ? ", " : ""}
+                  {formatDistance(docLength)}
+                </p>
+                <p className="mt-2 text-[15px] text-ink-3">{NAV.guideToStart}</p>
+              </div>
+            ) : (
+              <div className="mt-4">
+                <h1 className="text-[28px] leading-[1.05] font-extrabold tracking-[-0.02em]">{NAV.heading}</h1>
+                <div className="mt-3">
+                  {dest ? (
+                    <div className="flex items-center gap-3 rounded-[14px] border-[1.5px] border-line p-3">
+                      <MapPin size={22} weight="bold" aria-hidden className="shrink-0 text-ink-2" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm text-ink-3">{NAV.to}</span>
+                        <span className="block truncate font-bold">
+                          {dest.label || `${NAV.droppedPin}, ${dest.lat.toFixed(5)}, ${dest.lng.toFixed(5)}`}
+                        </span>
                       </span>
-                    </span>
-                    <button type="button" className="btn btn-ghost px-3" onClick={() => setDest(null)} disabled={!!busy}>
-                      {NAV.change}
+                      <button type="button" className="btn btn-ghost px-3" onClick={() => setDest(null)} disabled={!!busy}>
+                        {NAV.change}
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <PlaceSearch
+                        label={NAV.searchLabel}
+                        showLocate={false}
+                        getCenter={() => {
+                          const c = map?.map.getCenter();
+                          return c ? [c.lng, c.lat] : [36.8219, -1.2921];
+                        }}
+                        onPick={(p) => setDest({ lng: p.lng, lat: p.lat, label: p.label })}
+                      />
+                      <p className="mt-2 text-sm text-ink-3">{NAV.orTapMap}</p>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+            <fieldset className="mt-5">
+              <legend className="text-sm font-semibold text-ink-2">{NAV.activity}</legend>
+              <div className="mt-2 grid grid-cols-4 gap-2">
+                {ACTIVITY_ORDER.map((a) => {
+                  const I = ACTIVITY_ICON[a];
+                  return (
+                    <button
+                      key={a}
+                      type="button"
+                      className="chip h-16 flex-col gap-1 px-1"
+                      aria-pressed={activity === a}
+                      onClick={() => setActivity(a)}
+                    >
+                      <I size={22} weight={activity === a ? "bold" : "regular"} aria-hidden />
+                      {ACTIVITY_LABEL[a]}
                     </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+            {dest || doc ? (
+              <div className="mt-5">
+                <h2 className="text-sm font-semibold text-ink-2">{doc ? NAV.routesTo : NAV.routes}</h2>
+                {views.length ? (
+                  <div role="radiogroup" aria-label={doc ? NAV.routesTo : NAV.routes} className="mt-2 flex flex-col gap-2">
+                    {views.map((v) => {
+                      const on = v.id === selectedId;
+                      return (
+                        <button
+                          key={v.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={on}
+                          onClick={() => setPicked({ key: selKey, id: v.id })}
+                          className={`flex w-full items-center gap-3 rounded-[14px] border-[1.5px] p-3 text-left ${on ? "border-sign bg-surface-2" : "border-line bg-surface"}`}
+                        >
+                          <span
+                            className={`flex size-6 shrink-0 items-center justify-center rounded-full border-[1.5px] ${on ? "border-sign bg-sign text-sign-ink" : "border-line"}`}
+                            aria-hidden
+                          >
+                            {on ? <Check size={14} weight="bold" /> : null}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="num block text-[20px] leading-tight font-bold">{formatDuration(v.timeS)}</span>
+                            <span className="block text-[15px] text-ink-2">
+                              {formatDistance(v.distanceM)}
+                              {v.deltaM >= 10 ? `, ${optionTag(v)}` : ""}
+                            </span>
+                          </span>
+                          <span className="flex shrink-0 flex-col items-end gap-1">
+                            {v.shortest ? (
+                              <span className="rounded-[8px] bg-accent px-2 py-0.5 text-[12px] font-bold text-accent-ink">
+                                {NAV.shortest}
+                              </span>
+                            ) : null}
+                            {v.fastest ? (
+                              <span className="rounded-[8px] border-[1.5px] border-line px-2 py-0.5 text-[12px] font-bold text-ink-2">
+                                {NAV.fastest}
+                              </span>
+                            ) : null}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 ) : (
-                  <>
-                    <PlaceSearch
-                      label={NAV.searchLabel}
-                      showLocate={false}
-                      getCenter={() => {
-                        const c = map?.map.getCenter();
-                        return c ? [c.lng, c.lat] : [36.8219, -1.2921];
-                      }}
-                      onPick={(p) => setDest({ lng: p.lng, lat: p.lat, label: p.label })}
-                    />
-                    <p className="mt-2 text-sm text-ink-3">{NAV.orTapMap}</p>
-                  </>
+                  <p className="mt-2 text-sm text-ink-3" role="status">
+                    {locErr
+                      ? NAV.routesNeedLocation
+                      : here && doc && !target
+                        ? NAV.atStartAlready
+                        : current?.failed
+                          ? NAV.routesFailed
+                          : NAV.findingRoutes}
+                  </p>
                 )}
               </div>
-            </div>
-          )}
-          <fieldset className="mt-5">
-            <legend className="text-sm font-semibold text-ink-2">{NAV.activity}</legend>
-            <div className="mt-2 grid grid-cols-4 gap-2">
-              {ACTIVITY_ORDER.map((a) => {
-                const I = ACTIVITY_ICON[a];
-                return (
-                  <button
-                    key={a}
-                    type="button"
-                    className="chip h-16 flex-col gap-1 px-1"
-                    aria-pressed={activity === a}
-                    onClick={() => setActivity(a)}
-                  >
-                    <I size={22} weight={activity === a ? "bold" : "regular"} aria-hidden />
-                    {ACTIVITY_LABEL[a]}
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
-          {dest || doc ? (
-            <div className="mt-5">
-              <h2 className="text-sm font-semibold text-ink-2">{doc ? NAV.routesTo : NAV.routes}</h2>
-              {views.length ? (
-                <div role="radiogroup" aria-label={doc ? NAV.routesTo : NAV.routes} className="mt-2 flex flex-col gap-2">
-                  {views.map((v) => {
-                    const on = v.id === selectedId;
-                    return (
-                      <button
-                        key={v.id}
-                        type="button"
-                        role="radio"
-                        aria-checked={on}
-                        onClick={() => setPicked({ key: selKey, id: v.id })}
-                        className={`flex w-full items-center gap-3 rounded-[14px] border-[1.5px] p-3 text-left ${on ? "border-sign bg-surface-2" : "border-line bg-surface"}`}
-                      >
-                        <span
-                          className={`flex size-6 shrink-0 items-center justify-center rounded-full border-[1.5px] ${on ? "border-sign bg-sign text-sign-ink" : "border-line"}`}
-                          aria-hidden
-                        >
-                          {on ? <Check size={14} weight="bold" /> : null}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="num block text-[20px] leading-tight font-bold">{formatDuration(v.timeS)}</span>
-                          <span className="block text-[15px] text-ink-2">
-                            {formatDistance(v.distanceM)}
-                            {v.deltaM >= 10 ? `, ${optionTag(v)}` : ""}
-                          </span>
-                        </span>
-                        <span className="flex shrink-0 flex-col items-end gap-1">
-                          {v.shortest ? (
-                            <span className="rounded-[8px] bg-accent px-2 py-0.5 text-[12px] font-bold text-accent-ink">
-                              {NAV.shortest}
-                            </span>
-                          ) : null}
-                          {v.fastest ? (
-                            <span className="rounded-[8px] border-[1.5px] border-line px-2 py-0.5 text-[12px] font-bold text-ink-2">
-                              {NAV.fastest}
-                            </span>
-                          ) : null}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="mt-2 text-sm text-ink-3" role="status">
-                  {locErr
-                    ? NAV.routesNeedLocation
-                    : here && doc && !target
-                      ? NAV.atStartAlready
-                      : current?.failed
-                        ? NAV.routesFailed
-                        : NAV.findingRoutes}
-                </p>
-              )}
-            </div>
-          ) : null}
-          <button
-            type="button"
-            className="btn btn-primary btn-lg mt-5 w-full"
-            onClick={start}
-            disabled={(!dest && !doc) || !!busy}
-          >
-            <NavigationArrow size={22} weight="bold" aria-hidden />
-            {busy === "locating" ? NAV.starting : busy === "routing" ? NAV.routing : NAV.start}
-          </button>
-          {error ? (
-            <p role="alert" className="mt-3 text-[15px] font-medium text-danger">
-              {error}
-            </p>
-          ) : (
-            <p className="mt-3 text-sm text-ink-3">{NAV.keepAwake}</p>
-          )}
+            ) : null}
+          </div>
+          <div className="border-t border-line px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <button
+              type="button"
+              className="btn btn-primary btn-lg w-full"
+              onClick={start}
+              disabled={(!dest && !doc) || !!busy}
+            >
+              <NavigationArrow size={22} weight="bold" aria-hidden />
+              {busy === "locating" ? NAV.starting : busy === "routing" ? NAV.routing : NAV.start}
+            </button>
+            {error ? (
+              <p role="alert" className="mt-2 text-[15px] font-medium text-danger">
+                {error}
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-ink-3">{NAV.keepAwake}</p>
+            )}
+          </div>
         </section>
       )}
     </div>

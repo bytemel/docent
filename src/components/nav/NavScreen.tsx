@@ -273,7 +273,7 @@ export default function NavScreen({ trip, activity, dest, doc, firstFix, map, se
     { k: NAV.eta, v: etaTime, u: etaPeriod },
     { k: NAV.elapsed, v: clock(elapsedS), u: "" },
     ...(info.pace
-      ? [{ k: NAV.pace, v: view.paceSPerKm ? formatPace(view.paceSPerKm) : "--:--", u: NAV.perKm }]
+      ? [{ k: NAV.pace, v: view.paceSPerKm ? formatPace(view.paceSPerKm) : "--", u: NAV.perKm }]
       : []),
   ];
 
