@@ -189,6 +189,12 @@ describe("rankLandmarks", () => {
     const out = rankLandmarks([c("cafe", 10, 100, "food"), c("fuel", -10, 150, "fuel"), c("church", 10, 400, "worship")], line, []);
     expect(out.map((l) => l.id)).toEqual(["fuel", "church"]);
   });
+  it("keeps one of two same-name stops on opposite sides of the road", () => {
+    const a = { ...c("stopA", 20, 200, "bus"), label: "James Gichuru/Agriculture" };
+    const b = { ...c("stopB", -20, 420, "bus"), label: "James Gichuru / Agriculture" };
+    const out = rankLandmarks([a, b], line, []);
+    expect(out.map((l) => l.id)).toEqual(["stopA"]);
+  });
   it("uses an ATM only when nothing else is near", () => {
     const out = rankLandmarks([c("atm1", 5, 100, "bank", true), c("shop", 5, 160, "shop"), c("atm2", 5, 600, "bank", true)], line, []);
     expect(out.map((l) => l.id)).toEqual(["shop", "atm2"]);

@@ -195,6 +195,12 @@ export function decodePoiTile(buf: ArrayBuffer | Uint8Array, x: number, y: numbe
   return out;
 }
 
+const SAME_NAME_M = 500;
+
+function sameNameKey(label: string): string {
+  return label.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
 export function rankLandmarks(
   candidates: PoiCandidate[],
   coords: LngLat[],
@@ -223,6 +229,9 @@ export function rankLandmarks(
   for (const r of ranked) {
     if (picked.length >= max) break;
     if (picked.some((p) => Math.abs(p.atM - r.atM) < SPACING_M)) continue;
+    const name = sameNameKey(r.c.label);
+    if (picked.some((p) => sameNameKey(p.c.label) === name && haversine([p.c.lng, p.c.lat], [r.c.lng, r.c.lat]) < SAME_NAME_M))
+      continue;
     picked.push(r);
   }
   return picked
