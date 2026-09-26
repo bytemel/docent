@@ -48,7 +48,7 @@ function routedKeys(doc: RouteDoc): Record<string, string> {
 
 function initial(): InitState {
   if (typeof window === "undefined")
-    return { doc: emptyDoc(), phase: "setup", draft: null, saveArmed: true, badLink: false };
+    return { doc: emptyDoc(), phase: "setup", draft: null, saveArmed: true, badLink: false, pending: { start: null, end: null } };
   return initialState(window.location.search, loadDraft, decodeDoc);
 }
 
@@ -64,7 +64,7 @@ export function useEditor() {
   const [phase, setPhase] = useState<Phase>(init.phase);
   const [routed, setRouted] = useState<Record<string, string>>(() => routedKeys(init.doc));
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [pending, setPending] = useState<Pending>({ start: null, end: null });
+  const [pending, setPending] = useState<Pending>(init.pending);
   const [naming, setNaming] = useState<string[]>([]);
   const [tool, setTool] = useState<Tool>({ kind: "none" });
   const [tab, setTab] = useState<Tab>("route");
@@ -74,7 +74,7 @@ export function useEditor() {
   const [notice, setNotice] = useState<string | null>(init.badLink ? t.badLink : null);
   const [saveArmed, setSaveArmed] = useState(init.saveArmed);
   const [lmLoading, setLmLoading] = useState(false);
-  const [fitTick, setFitTick] = useState(init.phase === "edit" ? 1 : 0);
+  const [fitTick, setFitTick] = useState(init.phase === "edit" || init.pending.start ? 1 : 0);
   const inflight = useRef(new Map<string, { key: string; ctrl: AbortController }>());
   const fitAfterRoute = useRef(init.phase === "edit");
   const segsRef = useRef<Segment[]>(init.doc.segments);
@@ -103,11 +103,12 @@ export function useEditor() {
   );
 
   useEffect(() => {
-    if (!new URLSearchParams(window.location.search).has("d")) return;
+    const sp = new URLSearchParams(window.location.search);
+    if (!sp.has("d") && !sp.has("from")) return;
     try {
       window.history.replaceState(null, "", window.location.pathname);
     } catch {
-      // Keeping the long link in the address bar is harmless.
+      return;
     }
   }, []);
 

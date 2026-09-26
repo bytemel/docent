@@ -16,6 +16,7 @@ export interface MapHandlers {
   onSelectVia(v: ViaRef): void;
   onLineDrag(index: number, p: LngLat): void;
   onDrawn(segId: string, line: LngLat[]): void;
+  onStyleState?(loading: boolean): void;
 }
 
 export interface MapView {
@@ -184,9 +185,20 @@ export class MapController {
     );
   }
 
+  flyTo(p: LngLat, padding: Padding) {
+    this.map.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
+    this.map.easeTo({
+      center: p,
+      zoom: Math.max(this.map.getZoom(), 16),
+      offset: [(padding.left - padding.right) / 2, (padding.top - padding.bottom) / 2],
+      duration: prefersReducedMotion() ? 0 : 600,
+    });
+  }
+
   private onScheme = () => {
     if (this.removed) return;
     this.ready = false;
+    this.handlers.onStyleState?.(true);
     this.map.setStyle(mapStyleUrl(this.mq?.matches ?? false), { diff: false });
   };
 
@@ -255,6 +267,7 @@ export class MapController {
         },
       });
     this.ready = true;
+    this.handlers.onStyleState?.(false);
     this.render();
   };
 
@@ -622,7 +635,7 @@ export class MapController {
     try {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     } catch {
-      // Capture is optional; drawing still works without it.
+      return;
     }
     this.drawPts = [this.toLngLat(e)];
     this.renderDraw();

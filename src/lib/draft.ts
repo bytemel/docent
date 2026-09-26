@@ -25,7 +25,7 @@ export function saveDraftNow(doc: RouteDoc): void {
   try {
     window.localStorage.setItem(DRAFT_KEY, JSON.stringify(doc));
   } catch {
-    // Storage can be full or blocked in private mode; the draft is a convenience only.
+    return;
   }
 }
 
@@ -53,6 +53,6 @@ export function clearDraft(): void {
   try {
     window.localStorage.removeItem(DRAFT_KEY);
   } catch {
-    // Nothing to clear when storage is blocked.
+    return;
   }
 }

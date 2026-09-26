@@ -139,3 +139,111 @@ export function parsePhotonReverse(json: unknown): { label: string } {
   const label = (p.name || p.street || p.district || p.locality || p.city || "").trim();
   return { label };
 }
+
+export interface RankedResult extends SearchResult {
+  cc: string;
+}
+
+export function photonRanked(json: unknown): RankedResult[] {
+  const feats = features(json);
+  const base = parsePhotonSearch(json);
+  return base.map((r) => {
+    const f = feats.find((x) => {
+      const p = point(x);
+      return p && p.lng === r.lng && p.lat === r.lat;
+    });
+    const cc = String((f?.properties as { countrycode?: string } | undefined)?.countrycode ?? "").toLowerCase();
+    return { ...r, cc };
+  });
+}
+
+interface OrsGeoProps {
+  name?: string;
+  street?: string;
+  neighbourhood?: string;
+  locality?: string;
+  county?: string;
+  region?: string;
+  country_code?: string;
+  country_a?: string;
+}
+
+export function orsGeocodeUrl(q: string, bias: { lat: number; lng: number }, key: string, kenyaOnly: boolean): string {
+  const p = new URLSearchParams({
+    api_key: key,
+    text: q,
+    "focus.point.lat": bias.lat.toFixed(4),
+    "focus.point.lon": bias.lng.toFixed(4),
+    size: "6",
+  });
+  if (kenyaOnly) p.set("boundary.country", "KE");
+  return `https://api.openrouteservice.org/geocode/autocomplete?${p.toString()}`;
+}
+
+export function parseOrsGeocode(json: unknown): RankedResult[] {
+  const out: RankedResult[] = [];
+  for (const f of features(json)) {
+    const p = (f.properties ?? {}) as OrsGeoProps;
+    const pt = point(f);
+    const label = (p.name ?? "").trim();
+    if (!pt || !label) continue;
+    const sub = uniq([p.street, p.neighbourhood, p.locality ?? p.county, p.locality ? undefined : p.region])
+      .filter((s) => s.toLowerCase() !== label.toLowerCase())
+      .join(", ");
+    const cc = (p.country_code ?? (p.country_a === "KEN" ? "ke" : p.country_a ?? "")).toLowerCase();
+    out.push({ label, sub, lng: pt.lng, lat: pt.lat, cc });
+  }
+  return out;
+}
+
+export function nominatimUrl(q: string): string {
+  const p = new URLSearchParams({ q, format: "jsonv2", limit: "5", countrycodes: "ke", addressdetails: "1" });
+  return `https://nominatim.openstreetmap.org/search?${p.toString()}`;
+}
+
+interface NominatimRow {
+  lat?: string;
+  lon?: string;
+  name?: string;
+  display_name?: string;
+  address?: Record<string, string | undefined>;
+}
+
+export function parseNominatim(json: unknown): RankedResult[] {
+  if (!Array.isArray(json)) return [];
+  const out: RankedResult[] = [];
+  for (const row of json as NominatimRow[]) {
+    const lat = Number(row?.lat);
+    const lng = Number(row?.lon);
+    if (!validLat(lat) || !validLng(lng)) continue;
+    const a = row.address ?? {};
+    const label = (row.name || row.display_name?.split(",")[0] || "").trim();
+    if (!label) continue;
+    const sub = uniq([a.road, a.suburb ?? a.neighbourhood, a.city ?? a.town ?? a.county])
+      .filter((s) => s.toLowerCase() !== label.toLowerCase())
+      .join(", ");
+    out.push({ label, sub, lng, lat, cc: (a.country_code ?? "").toLowerCase() });
+  }
+  return out;
+}
+
+function metres(a: RankedResult, b: RankedResult): number {
+  const dx = (a.lng - b.lng) * 111320 * Math.cos((a.lat * Math.PI) / 180);
+  const dy = (a.lat - b.lat) * 110540;
+  return Math.hypot(dx, dy);
+}
+
+const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+export function mergeResults(lists: RankedResult[][], max = 8): SearchResult[] {
+  const kept: RankedResult[] = [];
+  for (const list of lists) {
+    for (const r of list) {
+      if (kept.some((k) => norm(k.label) === norm(r.label) && metres(k, r) < 150)) continue;
+      kept.push(r);
+    }
+  }
+  const ke = kept.filter((r) => r.cc === "ke");
+  const rest = kept.filter((r) => r.cc !== "ke");
+  return [...ke, ...rest].slice(0, max).map(({ label, sub, lng, lat }) => ({ label, sub, lng, lat }));
+}

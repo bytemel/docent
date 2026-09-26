@@ -20,6 +20,7 @@ import LandmarksTab from "./LandmarksTab";
 import StepsTab from "./StepsTab";
 import DetailsTab from "./DetailsTab";
 import ShareSheet from "./ShareSheet";
+import AskSheet from "./AskSheet";
 import PreviewDialog from "./PreviewDialog";
 import { defaultTitle, waypoints } from "./ops";
 import { useEditor } from "./useEditor";
@@ -34,6 +35,8 @@ export default function Editor() {
   const sheetRef = useRef<HTMLElement>(null);
   const [preview, setPreview] = useState(false);
   const [share, setShare] = useState<string | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [mapLoading, setMapLoading] = useState(true);
   const fitTick = e.fitTick;
 
   const padding = useCallback((): Padding => {
@@ -55,6 +58,9 @@ export default function Editor() {
   const getCenter = useCallback((): [number, number] => mapApi.current?.getCenter() ?? NAIROBI, []);
 
   const closeShare = useCallback(() => setShare(null), []);
+  const openAsk = useCallback(() => setAsking(true), []);
+  const closeAsk = useCallback(() => setAsking(false), []);
+  const flyTo = useCallback((p: [number, number]) => mapApi.current?.flyTo(p, padding()), [padding]);
   const closePreview = useCallback(() => setPreview(false), []);
   const editing = e.phase === "edit";
   const tool = e.tool;
@@ -97,9 +103,14 @@ export default function Editor() {
         draftLandmark={e.draftLandmark}
         tool={e.tool}
         selectedVia={e.selectedVia}
-        handlers={e.handlers}
+        handlers={{ ...e.handlers, onStyleState: setMapLoading }}
         onReady={onReady}
       />
+      {mapLoading ? (
+        <div role="progressbar" aria-label={t.mapLoading} className="absolute inset-x-0 top-0 z-40 h-1 bg-accent-soft">
+          <div className="h-full w-full animate-pulse bg-accent" />
+        </div>
+      ) : null}
 
       <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 p-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
         <Link href="/" className="btn btn-icon pointer-events-auto shrink-0 shadow-float" aria-label={t.back} title={t.back}>
@@ -226,8 +237,10 @@ export default function Editor() {
             naming={e.naming}
             getCenter={getCenter}
             onPick={a.placePoint}
+            onPreview={flyTo}
             onReset={a.resetPending}
             onLabel={a.setPendingLabel}
+            onAsk={openAsk}
           />
         ) : (
           <div role="tabpanel" id={`panel-${e.tab}`} aria-labelledby={`tab-${e.tab}`}>
@@ -243,6 +256,7 @@ export default function Editor() {
                 onRetry={a.retry}
                 onLabel={a.setLabel}
                 onRemoveStop={a.removeStop}
+                onAsk={openAsk}
               />
             ) : e.tab === "landmarks" ? (
               <LandmarksTab
@@ -273,6 +287,9 @@ export default function Editor() {
         )}
       </Sheet>
 
+      {asking ? (
+        <AskSheet destination={waypoints(e.doc.segments).at(-1) ?? e.pending.end} onClose={closeAsk} />
+      ) : null}
       {share ? <ShareSheet url={share} title={e.fullDoc.title} onClose={closeShare} /> : null}
       {preview ? (
         <PreviewDialog doc={e.fullDoc} onClose={closePreview} />

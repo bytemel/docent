@@ -49,7 +49,7 @@ export default function ShareSheet({ url, title, onClose }: Props) {
     try {
       await navigator.share({ title, text: title, url });
     } catch {
-      // The person closed the share menu; nothing to do.
+      return;
     }
   }
 

@@ -1,5 +1,8 @@
 import type { RouteDoc } from "@/lib/types";
-import { emptyDoc, isRouteDoc } from "./ops";
+import { t } from "@/strings/editor";
+import { readFromParams } from "@/app/here/params";
+import { defaultTitle, emptyDoc, isRouteDoc, newSegment } from "./ops";
+import type { Pending } from "./types";
 
 export type Phase = "resume" | "setup" | "edit";
 
@@ -9,6 +12,7 @@ export interface InitState {
   draft: RouteDoc | null;
   saveArmed: boolean;
   badLink: boolean;
+  pending: Pending;
 }
 
 export function normalise(d: RouteDoc): RouteDoc {
@@ -26,7 +30,9 @@ export function initialState(
   loadDraft: () => unknown,
   decode: (encoded: string) => unknown,
 ): InitState {
-  const d = new URLSearchParams(search).get("d");
+  const sp = new URLSearchParams(search);
+  const d = sp.get("d");
+  const none: Pending = { start: null, end: null };
   let raw: unknown = null;
   try {
     raw = loadDraft();
@@ -42,9 +48,19 @@ export function initialState(
     } catch {
       doc = null;
     }
-    if (isRouteDoc(doc)) return { doc: normalise(doc), phase: "edit", draft, saveArmed: !draft, badLink };
+    if (isRouteDoc(doc)) return { doc: normalise(doc), phase: "edit", draft, saveArmed: !draft, badLink, pending: none };
     badLink = true;
   }
-  if (draft) return { doc: emptyDoc(), phase: "resume", draft, saveArmed: true, badLink };
-  return { doc: emptyDoc(), phase: "setup", draft: null, saveArmed: true, badLink };
+  if (sp.has("from")) {
+    const from = readFromParams(search, t.theirLocation);
+    if (from?.to) {
+      const seg = newSegment(from.from, from.to, "walk");
+      const doc: RouteDoc = { ...emptyDoc(), title: defaultTitle(from.to.label), segments: [seg] };
+      return { doc, phase: "edit", draft, saveArmed: !draft, badLink, pending: none };
+    }
+    if (from) return { doc: emptyDoc(), phase: "setup", draft, saveArmed: true, badLink, pending: { start: from.from, end: null } };
+    badLink = true;
+  }
+  if (draft) return { doc: emptyDoc(), phase: "resume", draft, saveArmed: true, badLink, pending: none };
+  return { doc: emptyDoc(), phase: "setup", draft: null, saveArmed: true, badLink, pending: none };
 }

@@ -115,3 +115,32 @@ describe("providers", () => {
     expect(parsePhotonReverse({})).toEqual({ label: "" });
   });
 });
+
+describe("search merge", async () => {
+  const { mergeResults, parseNominatim, parseOrsGeocode } = await import("@/lib/server/providers");
+  it("dedupes the same place within 150 m and puts Kenya first", () => {
+    const merged = mergeResults([
+      [
+        { label: "Sarit Centre", sub: "Westlands", lng: 36.8021, lat: -1.2612, cc: "ke" },
+        { label: "Sarit", sub: "", lng: 10, lat: 50, cc: "de" },
+      ],
+      [
+        { label: "Sarit Centre", sub: "Nairobi", lng: 36.8025, lat: -1.2615, cc: "ke" },
+        { label: "Kangemi Stage", sub: "Kangemi", lng: 36.75, lat: -1.267, cc: "ke" },
+      ],
+    ]);
+    expect(merged.map((r) => r.label)).toEqual(["Sarit Centre", "Kangemi Stage", "Sarit"]);
+    expect(merged[0]).toEqual({ label: "Sarit Centre", sub: "Westlands", lng: 36.8021, lat: -1.2612 });
+  });
+  it("reads ORS and Nominatim rows", () => {
+    expect(
+      parseOrsGeocode({
+        features: [{ properties: { name: "Kangemi", locality: "Nairobi", country_a: "KEN" }, geometry: { coordinates: [36.75, -1.26] } }],
+      }),
+    ).toEqual([{ label: "Kangemi", sub: "Nairobi", lng: 36.75, lat: -1.26, cc: "ke" }]);
+    expect(
+      parseNominatim([{ lat: "-1.26", lon: "36.80", name: "Sarit Centre", address: { road: "Karuna Road", city: "Nairobi", country_code: "ke" } }]),
+    ).toEqual([{ label: "Sarit Centre", sub: "Karuna Road, Nairobi", lng: 36.8, lat: -1.26, cc: "ke" }]);
+    expect(parseNominatim({})).toEqual([]);
+  });
+});
