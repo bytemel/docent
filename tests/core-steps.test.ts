@@ -141,7 +141,7 @@ describe("buildSteps", () => {
     const steps = buildSteps([walk1, ride, walk2], [lm("sh", 30, 1200, "Shell"), lm("cafe", -30, 1500, "Java House", "food")]);
     expect(steps.filter((s) => s.kind === "turn")).toHaveLength(0);
     const rideStep = steps.find((s) => s.kind === "mode");
-    expect(rideStep?.text).toBe("Take a matatu at Westlands stage. Ride about 4.5 km (about 15 min) and get off at Kangemi stage.");
+    expect(rideStep?.text).toBe("Take a matatu at Westlands stage. Ride about 4.5 km, about 15 min, and get off at Kangemi stage.");
     expect(steps.find((s) => s.landmarkId === "sh")?.text).toBe("You will pass Shell petrol station.");
     expect(steps.some((s) => s.landmarkId === "cafe")).toBe(false);
     expect(steps.some((s) => s.text === "Get off and walk north.")).toBe(true);

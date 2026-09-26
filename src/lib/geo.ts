@@ -158,7 +158,9 @@ export function routeCoords(segments: { geometry: LngLat[] }[]): LngLat[] {
 export function formatDistance(m: number): string {
   const rounded = Math.round(m / 10) * 10;
   if (rounded < 1000) return `${rounded} m`;
-  return `${(m / 1000).toFixed(m < 10000 ? 1 : 0)} km`;
+  const km = m / 1000;
+  const text = km < 10 ? km.toFixed(1).replace(/\.0$/, "") : km.toFixed(0);
+  return `${text} km`;
 }
 
 export function formatDuration(s: number): string {

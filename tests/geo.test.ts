@@ -98,7 +98,16 @@ describe("formatDistance", () => {
 });
 
 describe("formatDistance near 1 km", () => {
-  it("says 1.0 km just under 1 km, not 1000 m", () => {
-    expect(formatDistance(998)).toBe("1.0 km");
+  it("says 1 km just under 1 km, not 1000 m", () => {
+    expect(formatDistance(998)).toBe("1 km");
+  });
+});
+
+describe("formatDistance whole kilometres", () => {
+  it("drops a trailing .0", () => {
+    expect(formatDistance(6000)).toBe("6 km");
+    expect(formatDistance(6040)).toBe("6 km");
+    expect(formatDistance(3120)).toBe("3.1 km");
+    expect(formatDistance(12400)).toBe("12 km");
   });
 });

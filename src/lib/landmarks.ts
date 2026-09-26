@@ -108,10 +108,17 @@ function hashId(label: string, lng: number, lat: number): string {
   return `poi-${(h >>> 0).toString(36)}`;
 }
 
+export function cleanPoiName(name: string): string {
+  return name
+    .replace(/\s+[-\u2013\u2014]\s*|\s*[-\u2013\u2014]\s+/g, ", ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function poiName(props: Record<string, unknown>): string {
   for (const k of ["name:en", "name_en", "name"]) {
     const v = props[k];
-    if (typeof v === "string" && v.trim()) return v.trim().slice(0, 80);
+    if (typeof v === "string" && v.trim()) return cleanPoiName(v).slice(0, 80);
   }
   return "";
 }

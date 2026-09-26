@@ -132,7 +132,7 @@ export const steps = {
     side ? `Pass ${landmark} on your ${side}.` : `Pass ${landmark}.`,
   willPass: (landmark: string) => `You will pass ${landmark}.`,
   ride: (verb: string, from: string | null, distance: string, duration: string, to: string | null) =>
-    `${from ? `${verb} at ${from}.` : `${verb}.`} Ride about ${distance} (about ${duration})${to ? ` and get off at ${to}` : ""}.`,
+    `${from ? `${verb} at ${from}.` : `${verb}.`} Ride about ${distance}, about ${duration}${to ? `, and get off at ${to}` : ""}.`,
   getOff: (next: string, at: string | null) => (at ? `Get off at ${at} and ${next}.` : `Get off and ${next}.`),
   switchTo: (next: string, at: string | null) => (at ? `At ${at}, ${next}.` : `Now ${next}.`),
   next: {

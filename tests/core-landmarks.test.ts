@@ -238,3 +238,13 @@ describe("generic POI names", () => {
     expect(rankLandmarks(cands, line, []).map((l) => l.label)).toEqual(["Mama Wanjiku Shop"]);
   });
 });
+
+describe("cleanPoiName", () => {
+  it("turns spaced dashes into commas and keeps hyphenated words", async () => {
+    const { cleanPoiName } = await import("@/lib/landmarks");
+    expect(cleanPoiName("Rosand Junior Academy - Primary")).toBe("Rosand Junior Academy, Primary");
+    expect(cleanPoiName("State House Primary -ECDE")).toBe("State House Primary, ECDE");
+    expect(cleanPoiName("Co-op Bank")).toBe("Co-op Bank");
+    expect(cleanPoiName("Mbagathi-Way Stage")).toBe("Mbagathi-Way Stage");
+  });
+});

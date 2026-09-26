@@ -192,6 +192,20 @@ body {
   font-size: 11px;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .maplibregl-ctrl-attrib,
+  :root:not([data-theme="light"]) .maplibregl-ctrl-attrib.maplibregl-compact {
+    background: rgb(22 25 28 / 0.85);
+    color: var(--ink-2);
+  }
+  :root:not([data-theme="light"]) .maplibregl-ctrl-attrib a {
+    color: var(--ink-2);
+  }
+  :root:not([data-theme="light"]) .maplibregl-ctrl-attrib-button {
+    filter: invert(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
