@@ -63,3 +63,38 @@ Supabase is planned for accounts and saved routes in a later version. It is not 
 Map data and tiles must always be credited wherever a map or a map image is shown:
 "Map data © OpenStreetMap contributors, tiles by OpenFreeMap", plus OpenRouteService where its routes are used.
 The map shows this in its corner and the home page shows it in the footer. Do not hide or remove it.
+
+## Live sharing
+
+A guest who is watching a route can share where they are with the host while they travel. The host opens a watch
+page (`/live/<id>?d=...`) and sees the guest's dot move along the route, with the distance left and a rough time to
+arrive. The dot is snapped onto the route when it is close, and a short trail shows the last two minutes.
+
+How it works:
+
+- **No tables and no storage.** Positions go straight from the guest's phone to the host's browser through Supabase
+  Realtime Broadcast. Nothing is written to a database, so Docent does not store locations.
+- **The link is the key.** Each share gets a new random id of 24 characters (`src/lib/live.ts`). Only people who
+  have the watch link can join that channel, so share the link only with people you trust.
+- **Light on data.** The guest's phone sends at most one position every 3 seconds, or sooner after moving more than
+  20 m, plus a small "still here" signal every 15 seconds. The watch page says "Last seen 2 min ago" when the
+  signals stop, and "Sharing stopped" when the guest turns it off.
+- **Jitter is smoothed.** `src/lib/liveFilter.ts` drops positions that are worse than 100 m or that jump faster than
+  60 m/s, and smooths the rest, trusting the more accurate readings more.
+
+Live sharing is optional. Without the two variables below, the rest of Docent works as before and the watch page
+says "Live sharing is not switched on for this site yet."
+
+| Name | What it is for |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | The address of your Supabase project. |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | The public anon key of that project. It is safe in the browser: Docent only uses it for Realtime Broadcast. |
+
+To switch it on:
+
+1. Create a free project at supabase.com.
+2. Open Project Settings, then API. Copy the Project URL and the anon public key.
+3. Add them as the two variables above in `.env.local` and in the Vercel project settings, then redeploy. Both are
+   built into the page at build time, so a change needs a new deploy.
+
+No SQL is needed. Realtime Broadcast works on a new project without any tables or policies.
