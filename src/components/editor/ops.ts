@@ -364,20 +364,3 @@ export function optionStats(
   }
   return out;
 }
-
-export function altAnchor(alt: LngLat[], main: LngLat[]): LngLat {
-  const cum = cumulative(alt);
-  const total = cum[cum.length - 1] ?? 0;
-  const mainCum = cumulative(main);
-  let best: LngLat = pointAt(alt, cum, total / 2).pos;
-  let far = -1;
-  for (let f = 0.15; f <= 0.851; f += 0.05) {
-    const p = pointAt(alt, cum, total * f).pos;
-    const d = main.length >= 2 ? nearestOnLine(p, main, mainCum).d : 0;
-    if (d > far + 5) {
-      far = d;
-      best = p;
-    }
-  }
-  return best;
-}
