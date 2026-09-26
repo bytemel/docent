@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import type { NextRequest } from "next/server";
+import { OG_COLORS as C, RouteSvg } from "@/app/r/og-draw";
 import { parseOg, type OgRun } from "@/app/r/og-params";
 import { formatDistance } from "@/lib/geo";
 import { MODES } from "@/lib/modes";
@@ -8,48 +9,7 @@ import { brand, og } from "@/strings/common";
 const W = 1200;
 const H = 630;
 const BOX = { x: 660, y: 70, w: 470, h: 490 };
-const C = { bg: "#f6f6f4", surface: "#ffffff", ink: "#18181b", ink2: "#52525b", ink3: "#71717a", line: "#e2e2de" };
 const CACHE = "public, max-age=86400, s-maxage=31536000, immutable";
-
-function project(runs: OgRun[]) {
-  const all = runs.flatMap((r) => r.points);
-  const lat0 = all.reduce((s, p) => s + p[1], 0) / all.length;
-  const k = Math.cos((lat0 * Math.PI) / 180);
-  const xs = all.map((p) => p[0] * k);
-  const ys = all.map((p) => p[1]);
-  const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
-  const span = Math.max(maxX - minX, maxY - minY, 1e-6);
-  const scale = Math.min(BOX.w / Math.max(maxX - minX, span * 0.2), BOX.h / Math.max(maxY - minY, span * 0.2));
-  const ox = BOX.x + (BOX.w - (maxX - minX) * scale) / 2;
-  const oy = BOX.y + (BOX.h - (maxY - minY) * scale) / 2;
-  const to = (p: [number, number]) => [ox + (p[0] * k - minX) * scale, oy + (maxY - p[1]) * scale] as const;
-  return runs.map((r) => ({ mode: r.mode, xy: r.points.map(to) }));
-}
-
-function RouteSvg({ runs }: { runs: OgRun[] }) {
-  const drawn = project(runs);
-  const first = drawn[0].xy[0];
-  const lastRun = drawn[drawn.length - 1].xy;
-  const last = lastRun[lastRun.length - 1];
-  return (
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ position: "absolute", left: 0, top: 0 }}>
-      {drawn.map((r, i) => (
-        <path
-          key={i}
-          d={r.xy.map(([x, y], j) => `${j ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ")}
-          fill="none"
-          stroke={MODES[r.mode].color}
-          strokeWidth={10}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeDasharray={MODES[r.mode].dashed ? "2 18" : undefined}
-        />
-      ))}
-      <circle cx={first[0]} cy={first[1]} r={15} fill={C.surface} stroke={C.ink} strokeWidth={6} />
-      <circle cx={last[0]} cy={last[1]} r={17} fill={C.ink} stroke={C.surface} strokeWidth={6} />
-    </svg>
-  );
-}
 
 function modesLine(runs: OgRun[]): string {
   const out: string[] = [];
@@ -85,7 +45,7 @@ export async function GET(request: NextRequest) {
             }}
           />
         ) : null}
-        {hasRoute ? <RouteSvg runs={data.runs} /> : null}
+        {hasRoute ? <RouteSvg runs={data.runs} box={BOX} /> : null}
         <div
           style={{
             position: "absolute",

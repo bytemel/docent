@@ -6,6 +6,7 @@ import { formatDistance } from "@/lib/geo";
 import { decodeDoc } from "@/lib/share";
 import type { RouteDoc } from "@/lib/types";
 import { viewer } from "@/strings/common";
+import LostRoute from "@/components/landing/LostRoute";
 import { MessagePage } from "./mark";
 import { modeList, ogQuery, totalMeters } from "./og-params";
 
@@ -39,7 +40,12 @@ export default async function RoutePage({ searchParams }: Props) {
   const doc = await readDoc(searchParams);
   if (!doc) {
     return (
-      <MessagePage title={viewer.brokenTitle} body={viewer.broken}>
+      <MessagePage
+        title={viewer.brokenTitle}
+        body={viewer.broken}
+        hint={viewer.brokenHint}
+        art={<LostRoute kind="broken" className="h-auto w-full" />}
+      >
         <Link href="/new" className="btn btn-primary">
           {viewer.makeOwn}
         </Link>

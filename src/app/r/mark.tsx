@@ -22,14 +22,30 @@ export function Wordmark() {
   );
 }
 
-export function MessagePage({ title, body, children }: { title: string; body: string; children: ReactNode }) {
+export function MessagePage({
+  title,
+  body,
+  hint,
+  art,
+  children,
+}: {
+  title: string;
+  body: string;
+  hint?: string;
+  art: ReactNode;
+  children: ReactNode;
+}) {
   return (
-    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-5 py-8 sm:px-8">
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-5 py-6 sm:px-8">
       <Wordmark />
-      <div className="flex flex-1 flex-col justify-center py-16">
-        <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">{title}</h1>
-        <p className="mt-4 max-w-[46ch] text-lg leading-relaxed text-ink-2">{body}</p>
-        <div className="mt-8 flex flex-wrap gap-3">{children}</div>
+      <div className="grid flex-1 content-center items-center gap-8 py-12 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] md:gap-12">
+        <div className="w-full max-w-[18rem] md:order-2 md:max-w-none">{art}</div>
+        <div className="min-w-0">
+          <h1 className="text-[2rem] font-semibold leading-[1.1] tracking-tight text-balance sm:text-5xl">{title}</h1>
+          <p className="mt-5 max-w-[42ch] text-lg leading-relaxed text-ink-2">{body}</p>
+          {hint ? <p className="mt-3 max-w-[46ch] text-sm leading-relaxed text-ink-3">{hint}</p> : null}
+          <div className="mt-8 flex flex-wrap gap-3">{children}</div>
+        </div>
       </div>
     </main>
   );
