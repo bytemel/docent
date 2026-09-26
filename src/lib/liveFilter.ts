@@ -9,6 +9,7 @@ export const FILTER = {
   minNoiseMps: 3,
   resetAfterRejects: 3,
   snapMinM: 25,
+  trailMs: 120_000,
 } as const;
 
 export interface FilterOptions {
