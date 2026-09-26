@@ -20,18 +20,28 @@ const ORS_PROFILE: Record<Profile, string> = {
   bike: "cycling-regular",
 };
 
-export function osrmUrl(profile: Profile, points: LngLat[]): string {
+export function osrmUrl(profile: Profile, points: LngLat[], alternatives = false): string {
   const coords = points.map(([lng, lat]) => `${lng},${lat}`).join(";");
-  return `https://routing.openstreetmap.de/routed-${profile}/route/v1/driving/${coords}?overview=full&geometries=geojson`;
+  const alt = alternatives && points.length === 2 ? "&alternatives=3" : "";
+  return `https://routing.openstreetmap.de/routed-${profile}/route/v1/driving/${coords}?overview=full&geometries=geojson${alt}`;
 }
 
-export function orsRequest(profile: Profile, points: LngLat[], key: string): { url: string; init: RequestInit } {
+export function orsRequest(
+  profile: Profile,
+  points: LngLat[],
+  key: string,
+  alternatives = false,
+): { url: string; init: RequestInit } {
+  const body: Record<string, unknown> = { coordinates: points, radiuses: points.map(() => -1) };
+  if (alternatives && points.length === 2) {
+    body.alternative_routes = { target_count: 3, weight_factor: 1.6, share_factor: 0.6 };
+  }
   return {
     url: `https://api.openrouteservice.org/v2/directions/${ORS_PROFILE[profile]}/geojson`,
     init: {
       method: "POST",
       headers: { Authorization: key, "Content-Type": "application/json" },
-      body: JSON.stringify({ coordinates: points, radiuses: points.map(() => -1) }),
+      body: JSON.stringify(body),
     },
   };
 }
@@ -68,6 +78,45 @@ export function parseOrs(json: unknown): RouteResult | null {
   const distanceM = Number(f.properties?.summary?.distance ?? 0);
   if (!geometry || !Number.isFinite(distanceM)) return null;
   return { geometry, distanceM: Math.round(distanceM) };
+}
+
+export interface RouteCandidate {
+  geometry: LngLat[];
+  distanceM: number;
+  durationS?: number;
+}
+
+function duration(raw: unknown): number | undefined {
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : undefined;
+}
+
+export function parseOsrmAll(json: unknown): RouteCandidate[] {
+  const j = json as { code?: string; routes?: { geometry?: { coordinates?: unknown }; distance?: unknown; duration?: unknown }[] };
+  if (!j || j.code !== "Ok" || !Array.isArray(j.routes)) return [];
+  const out: RouteCandidate[] = [];
+  for (const r of j.routes) {
+    const geometry = cleanLine(r?.geometry?.coordinates);
+    const distanceM = Number(r?.distance);
+    if (!geometry || !Number.isFinite(distanceM)) continue;
+    out.push({ geometry, distanceM: Math.round(distanceM), durationS: duration(r.duration) });
+  }
+  return out;
+}
+
+export function parseOrsAll(json: unknown): RouteCandidate[] {
+  const j = json as {
+    features?: { geometry?: { coordinates?: unknown }; properties?: { summary?: { distance?: unknown; duration?: unknown } } }[];
+  };
+  if (!Array.isArray(j?.features)) return [];
+  const out: RouteCandidate[] = [];
+  for (const f of j.features) {
+    const geometry = cleanLine(f?.geometry?.coordinates);
+    const distanceM = Number(f?.properties?.summary?.distance ?? 0);
+    if (!geometry || !Number.isFinite(distanceM)) continue;
+    out.push({ geometry, distanceM: Math.round(distanceM), durationS: duration(f.properties?.summary?.duration) });
+  }
+  return out;
 }
 
 interface PhotonProps {
