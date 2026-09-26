@@ -84,6 +84,7 @@ export const viewer = {
   home: "Go to the home page",
   brokenHint: "Links can break when a chat app cuts them short. Ask for the full link, or open it from the original message.",
   summary: (distance: string, modes: string) => `${distance} route (${modes}). Watch it play step by step.`,
+  offline: "Saved on this phone. It plays without data too.",
 };
 
 export const notFound = {
