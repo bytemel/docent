@@ -223,3 +223,36 @@ export function defaultTitle(label?: string): string {
 export function sameJson(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
+
+export function patchDocRoute(doc: RouteDoc, id: string, key: string, geometry: LngLat[]): RouteDoc {
+  let changed = false;
+  const segments = doc.segments.map((s) => {
+    if (s.id !== id || s.drawn || segKey(s) !== key) return s;
+    changed = true;
+    return withRoute(s, geometry);
+  });
+  return changed ? { ...doc, segments } : doc;
+}
+
+export function nameWaypoint(doc: RouteDoc, lng: number, lat: number, label: string): RouteDoc {
+  const wps = waypoints(doc.segments);
+  const i = wps.findIndex((w) => w.lng === lng && w.lat === lat && !w.label?.trim());
+  if (i < 0 || !label) return doc;
+  const segments = setWaypointLabel(doc.segments, i, label);
+  const last = wps.length - 1;
+  const title = i === last && (!doc.title.trim() || doc.title === defaultTitle("")) ? defaultTitle(label) : doc.title;
+  return { ...doc, segments, title };
+}
+
+export function isRouteDoc(v: unknown): v is RouteDoc {
+  const d = v as RouteDoc;
+  return (
+    !!d &&
+    d.v === 1 &&
+    Array.isArray(d.segments) &&
+    d.segments.length > 0 &&
+    Array.isArray(d.landmarks) &&
+    Array.isArray(d.steps) &&
+    d.segments.every((s) => s && s.from && s.to && Array.isArray(s.geometry) && Array.isArray(s.vias) && !!MODES[s.mode])
+  );
+}

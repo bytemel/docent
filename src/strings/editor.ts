@@ -59,6 +59,7 @@ export const t = {
   stopLabel: "Where do they change? For example Kangemi stage",
   removeStop: "Remove this stop",
   total: "Total",
+  distTime: (d: string, time: string) => `${d}, about ${time}`,
 
   hintAddVia: "Tap the map where the route should pass.",
   hintSplit: "Tap the route where they change transport.",
@@ -86,6 +87,19 @@ export const t = {
   show: "Show this landmark",
   yourLandmarks: "Your landmarks",
   mapLandmarks: "Suggested from the map",
+  kinds: {
+    fuel: "Fuel",
+    school: "School",
+    worship: "Worship",
+    hospital: "Hospital",
+    pharmacy: "Pharmacy",
+    bank: "Bank",
+    bus: "Bus stop",
+    shop: "Shop",
+    food: "Food",
+    other: "Place",
+    host: "Your pin",
+  } as Record<string, string>,
 
   stepsIntro: "These are made from the route. Tap a step to change the words.",
   stepsEmpty: "Steps appear once the route is ready.",
