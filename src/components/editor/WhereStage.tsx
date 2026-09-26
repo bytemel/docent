@@ -87,7 +87,7 @@ export function AskCard({ onAsk }: { onAsk(): void }) {
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-[15px] font-bold leading-tight text-ink">{t.askCardTitle}</p>
-          <p className="text-sm leading-snug text-ink-2">{t.askTheirLocationHint}</p>
+          <p className="text-sm leading-snug text-ink-2 text-pretty">{t.askTheirLocationHint}</p>
         </div>
       </div>
       <button type="button" className="btn btn-sign w-full" onClick={onAsk}>
@@ -150,8 +150,8 @@ export function WhereSetup({ pending, naming, getCenter, onPick, onPreview, onRe
             />
           ) : (
             <div className="flex flex-col gap-1.5 pt-0.5">
-              <p className="text-sm font-semibold text-ink-3">{t.endHeading}</p>
-              <p className="flex min-h-12 items-center rounded-[14px] border-[1.5px] border-dashed border-line px-3.5 text-ink-3">
+              <p className="text-sm font-semibold text-ink-3 text-pretty">{t.endHeading}</p>
+              <p className="flex min-h-12 items-center rounded-[14px] border-[1.5px] border-dashed border-line px-3.5 text-ink-3 text-pretty">
                 {t.endLabel}
               </p>
             </div>
@@ -206,7 +206,7 @@ export function WhereEdit({ segments, focusStop, onLabel, onRemoveStop }: EditPr
           </Row>
         ))}
       </ol>
-      <p className="text-sm text-ink-3">{t.whereEditTip}</p>
+      <p className="text-sm text-ink-3 text-pretty">{t.whereEditTip}</p>
     </div>
   );
 }

@@ -8,7 +8,7 @@ const Editor = dynamic(() => import("./Editor"), {
   ssr: false,
   loading: () => (
     <div className="fixed inset-0 grid place-items-center bg-bg">
-      <p className="text-sm text-ink-3" role="status">
+      <p className="text-sm text-ink-3 text-pretty" role="status">
         {t.loadingMap}
       </p>
     </div>

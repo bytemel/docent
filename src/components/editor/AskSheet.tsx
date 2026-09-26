@@ -94,7 +94,7 @@ export default function AskSheet({ destination, onClose }: Props) {
               <h2 id="ask-h" className="text-[22px] font-extrabold leading-[1.1] tracking-[-0.02em] text-ink">
                 {t.ask.heading}
               </h2>
-              <p className="mt-1 text-[14px] leading-snug text-ink-2">{t.ask.body}</p>
+              <p className="mt-1 text-[14px] leading-snug text-ink-2 text-pretty">{t.ask.body}</p>
             </div>
             <button ref={closeRef} type="button" className="btn btn-icon btn-ghost -mr-2 -mt-2 shrink-0" aria-label={t.close} onClick={onClose}>
               <XIcon size={20} weight="bold" aria-hidden />

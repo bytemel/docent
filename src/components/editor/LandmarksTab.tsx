@@ -24,7 +24,7 @@ export default function LandmarksTab(p: Props) {
   const adding = p.tool.kind === "landmark";
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-ink-2">{t.landmarksIntro}</p>
+      <p className="text-sm text-ink-2 text-pretty">{t.landmarksIntro}</p>
       {p.draft ? (
         <DraftForm onAdd={p.onAdd} onCancel={p.onCancelDraft} />
       ) : (
@@ -79,7 +79,7 @@ export default function LandmarksTab(p: Props) {
       <section className="flex flex-col gap-2">
         <h3 className="text-[15px] font-bold text-ink">{t.mapLandmarks}</h3>
         {map.length === 0 ? (
-          <p className="text-sm text-ink-3" aria-live="polite">
+          <p className="text-sm text-ink-3 text-pretty" aria-live="polite">
             {p.loading ? t.landmarksLoading : t.landmarksEmpty}
           </p>
         ) : (

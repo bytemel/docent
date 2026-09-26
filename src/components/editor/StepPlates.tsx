@@ -71,7 +71,7 @@ interface Props {
 export default function StepPlates({ steps, segments, onEdit, onReset }: Props) {
   const [editing, setEditing] = useState<string | null>(null);
   useEffect(() => () => getVoice().cancel(), []);
-  if (!steps.length) return <p className="text-sm text-ink-3">{t.stepsEmpty}</p>;
+  if (!steps.length) return <p className="text-sm text-ink-3 text-pretty">{t.stepsEmpty}</p>;
   return (
     <ol className="flex flex-col gap-2">
       {steps.map((s, i) => {
@@ -88,7 +88,7 @@ export default function StepPlates({ steps, segments, onEdit, onReset }: Props) 
                 {s.atM > 0 ? (
                   <>
                     <span aria-hidden className="size-1 rounded-full bg-current opacity-60" />
-                    <span>{formatDistance(s.atM)}</span>
+                    <span>{t.stepAt(formatDistance(s.atM))}</span>
                   </>
                 ) : null}
               </p>
@@ -107,7 +107,7 @@ export default function StepPlates({ steps, segments, onEdit, onReset }: Props) 
                   />
                 </>
               ) : (
-                <p className="text-[17px] font-bold leading-snug text-balance">{s.text}</p>
+                <p className="text-[17px] font-bold leading-snug text-pretty">{s.text}</p>
               )}
               {s.edited ? (
                 <button
@@ -119,7 +119,7 @@ export default function StepPlates({ steps, segments, onEdit, onReset }: Props) 
                 </button>
               ) : null}
             </div>
-            <div className="-my-1 -mr-1 flex shrink-0 flex-col gap-1">
+            <div className="-my-1 -mr-1 flex shrink-0 gap-0.5 self-start">
               <button
                 type="button"
                 className="grid size-11 place-items-center rounded-[12px] hover:bg-[color-mix(in_srgb,var(--sign-ink)_14%,transparent)]"

@@ -128,7 +128,7 @@ function OptionRows({
   const stats = optionStats(seg, options.list, options.selectedId);
   return (
     <div className="border-t border-line px-3 pb-3 pt-2.5">
-      <p className="mb-2 text-xs font-semibold text-ink-3">{t.optionsLabel}</p>
+      <p className="mb-2 text-xs font-semibold text-ink-3 text-pretty">{t.optionsLabel}</p>
       <ul className="flex flex-col gap-1.5">
         {options.list.map((o) => {
           const on = o.id === options.selectedId;
@@ -162,6 +162,15 @@ function OptionRows({
         })}
       </ul>
     </div>
+  );
+}
+
+function ModeChip({ mode }: { mode: Mode }) {
+  const I = MODE_ICON[mode];
+  return (
+    <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-[12px] bg-surface-2 text-ink">
+      <I size={22} weight="bold" />
+    </span>
   );
 }
 
@@ -226,9 +235,9 @@ function LegCard({
   return (
     <article className="overflow-hidden rounded-[18px] border border-line bg-surface">
       <header className="flex items-center gap-3 px-3 pb-2.5 pt-3">
-        <span aria-hidden className="h-8 w-1.5 shrink-0 self-stretch rounded-[2px]" style={{ background: MODES[seg.mode].color }} />
+        <ModeChip mode={seg.mode} />
         <div className="min-w-0 flex-1">
-          {count > 1 ? <p className="text-xs font-semibold text-ink-3">{t.legHeading(n)}</p> : null}
+          {count > 1 ? <p className="text-xs font-semibold text-ink-3 text-pretty">{t.legHeading(n)}</p> : null}
           <h3 className="text-[17px] font-bold leading-tight text-ink break-words">
             {fromName} <span className="font-semibold text-ink-3">to</span> {toName}
           </h3>
@@ -242,7 +251,7 @@ function LegCard({
           ) : status === "ok" && count > 1 ? (
             <>
               <p className="num text-[17px] font-bold leading-tight text-ink">{formatDistance(seg.distanceM)}</p>
-              <p className="num text-xs text-ink-3">{formatDuration(seg.durationS)}</p>
+              <p className="num text-xs text-ink-3 text-pretty">{formatDuration(seg.durationS)}</p>
             </>
           ) : null}
         </div>
@@ -262,7 +271,7 @@ function LegCard({
               <I size={24} weight={on ? "fill" : "bold"} aria-hidden />
               <span className="max-w-full truncate text-[11.5px] font-bold leading-none">{MODES[m].label}</span>
               {on ? (
-                <span aria-hidden className="absolute inset-x-2 bottom-1 h-[3px] rounded-[2px]" style={{ background: MODES[m].color }} />
+                <span aria-hidden className="absolute bottom-1.5 size-1.5 rounded-full" style={{ background: MODES[m].color }} />
               ) : null}
             </button>
           );
@@ -279,7 +288,7 @@ function LegCard({
           </button>
         </div>
       ) : null}
-      {seg.drawn ? <p className="px-3 pb-2 text-sm text-ink-3">{t.drawnNote}</p> : null}
+      {seg.drawn ? <p className="px-3 pb-2 text-sm text-ink-3 text-pretty">{t.drawnNote}</p> : null}
       {options && status === "ok" ? <OptionRows seg={seg} options={options} onPick={onPickOption} /> : null}
       <ul aria-label={t.toolsLabel} className="divide-y divide-line border-t border-line">
         {!seg.drawn ? <ToolRow icon={PlusIcon} label={t.turnShort} pressed={active("via")} onClick={() => toggle("via")} /> : null}

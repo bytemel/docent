@@ -187,7 +187,7 @@ export default function Editor() {
           <h2 className="text-[20px] font-extrabold leading-[1.1] tracking-[-0.02em] text-ink min-[400px]:text-[22px]">
             {copy.title}
           </h2>
-          <p className="mt-1 text-[14px] leading-snug text-ink-2 [@media(max-height:700px)]:hidden">{copy.lead}</p>
+          <p className="mt-1 text-[14px] leading-snug text-ink-2 [@media(max-height:700px)]:hidden text-pretty">{copy.lead}</p>
         </div>
         {stage === "directions" && editing && e.steps.length ? (
           <button type="button" className="btn shrink-0 px-3" onClick={() => hearAll(e.steps)} aria-label={t.hearAll}>
