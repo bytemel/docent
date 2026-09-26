@@ -9,12 +9,8 @@ import { OFF_ROUTE_M, type FixOut, type LocStatus } from "./location";
 
 interface Props {
   loc: LocStatus;
-  followMe: boolean;
   arrivalNote: string;
   sinkRef: RefObject<((fix: FixOut) => void) | null>;
-  onStart: () => void;
-  onStop: () => void;
-  onFollowMe: (on: boolean) => void;
   onGuide: () => void;
 }
 
@@ -62,8 +58,53 @@ function useWakeLock(on: boolean) {
   }, [on]);
 }
 
-export default function LivePanel({ loc, followMe, arrivalNote, sinkRef, onStart, onStop, onFollowMe, onGuide }: Props) {
-  const tracking = loc.state === "waiting" || loc.state === "weak" || loc.state === "on";
+export function isTracking(loc: LocStatus): boolean {
+  return loc.state === "waiting" || loc.state === "weak" || loc.state === "on";
+}
+
+export function LiveToggle({
+  loc,
+  followMe,
+  onStart,
+  onStop,
+  onFollowMe,
+}: {
+  loc: LocStatus;
+  followMe: boolean;
+  onStart: () => void;
+  onStop: () => void;
+  onFollowMe: (on: boolean) => void;
+}) {
+  const tracking = isTracking(loc);
+  return (
+    <div className="flex flex-col items-end gap-2">
+      {tracking ? (
+        <button
+          type="button"
+          className={followMe ? "btn btn-primary btn-icon shadow-float" : "btn btn-icon shadow-float"}
+          aria-pressed={followMe}
+          aria-label={PLAYER.followMe}
+          title={PLAYER.followMe}
+          onClick={() => onFollowMe(!followMe)}
+        >
+          <NavigationArrow size={20} weight="bold" aria-hidden="true" />
+        </button>
+      ) : null}
+      <button
+        type="button"
+        className={tracking ? "btn btn-primary shadow-float" : "btn shadow-float"}
+        aria-pressed={tracking}
+        onClick={() => (tracking ? onStop() : onStart())}
+      >
+        <Crosshair size={18} weight="bold" aria-hidden="true" />
+        {tracking ? PLAYER.stopShowingMe : PLAYER.showMe}
+      </button>
+    </div>
+  );
+}
+
+export default function LivePanel({ loc, arrivalNote, sinkRef, onGuide }: Props) {
+  const tracking = isTracking(loc);
   useWakeLock(tracking);
   const [encoded] = useState(() => new URLSearchParams(window.location.search).get("d"));
   const canShare = isLiveConfigured() && !!encoded;
@@ -136,34 +177,12 @@ export default function LivePanel({ loc, followMe, arrivalNote, sinkRef, onStart
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          className="chip min-h-11"
-          aria-pressed={tracking}
-          onClick={() => {
-            if (tracking) {
-              stopShare();
-              onStop();
-            } else onStart();
-          }}
-        >
-          <Crosshair size={16} weight="bold" aria-hidden="true" />
-          {tracking ? PLAYER.stopShowingMe : PLAYER.showMe}
+      {tracking && canShare && !share ? (
+        <button type="button" className="chip min-h-11 self-start" onClick={() => void startShare()}>
+          <ShareNetwork size={16} weight="bold" aria-hidden="true" />
+          {shareLiveLabel(PLAYER.theSender)}
         </button>
-        {tracking ? (
-          <button type="button" className="chip min-h-11" aria-pressed={followMe} onClick={() => onFollowMe(!followMe)}>
-            <NavigationArrow size={16} weight="bold" aria-hidden="true" />
-            {PLAYER.followMe}
-          </button>
-        ) : null}
-        {tracking && canShare && !share ? (
-          <button type="button" className="chip min-h-11" onClick={() => void startShare()}>
-            <ShareNetwork size={16} weight="bold" aria-hidden="true" />
-            {shareLiveLabel(PLAYER.theSender)}
-          </button>
-        ) : null}
-      </div>
+      ) : null}
       <div role="status" aria-live="polite" className="flex flex-col gap-1 text-sm text-ink-2">
         {message ? <p>{message}</p> : null}
         {loc.state === "on" && loc.arrived ? (

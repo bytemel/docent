@@ -9,7 +9,7 @@ import { buildTimeline, stepTimes } from "@/lib/timeline";
 import type { RouteDoc } from "@/lib/types";
 import { PLAYER } from "@/strings/player";
 import Controls from "./Controls";
-import LivePanel from "./LivePanel";
+import LivePanel, { LiveToggle } from "./LivePanel";
 import { LOC_OFF, type FixOut, type LocStatus } from "./location";
 import { PlaybackEngine } from "./engine";
 import { EndCard, StaticView, StepList, Summary } from "./Panels";
@@ -274,6 +274,29 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
             </span>
           </div>
           {closeBtn}
+          {variant === "page" && mapState === "ready" && !ended ? (
+            <div className="absolute bottom-10 right-3 z-10">
+              <LiveToggle
+                loc={loc}
+                followMe={followMe}
+                onStart={() =>
+                  engRef.current?.startLocation({
+                    onStatus: setLoc,
+                    onFollowOff: () => setFollowMe(false),
+                    onFix: (fix) => sinkRef.current?.(fix),
+                  })
+                }
+                onStop={() => {
+                  engRef.current?.stopLocation();
+                  setFollowMe(false);
+                }}
+                onFollowMe={(on) => {
+                  setFollowMe(on);
+                  engRef.current?.followMe(on);
+                }}
+              />
+            </div>
+          ) : null}
           {mapState === "loading" ? (
             <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
               <span className="chip shadow-float">{PLAYER.loadingMap}</span>
@@ -335,28 +358,12 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
             onFollow={() => engRef.current?.follow()}
             onSheet={() => setSheetOpen((o) => !o)}
           />
-          {variant === "page" && mapState === "ready" ? (
+          {variant === "page" && loc.state !== "off" ? (
             <div className="mx-auto mt-3 w-full max-w-3xl">
               <LivePanel
                 loc={loc}
-                followMe={followMe}
                 arrivalNote={doc.arrival?.note?.trim() ?? ""}
                 sinkRef={sinkRef}
-                onStart={() =>
-                  engRef.current?.startLocation({
-                    onStatus: setLoc,
-                    onFollowOff: () => setFollowMe(false),
-                    onFix: (fix) => sinkRef.current?.(fix),
-                  })
-                }
-                onStop={() => {
-                  engRef.current?.stopLocation();
-                  setFollowMe(false);
-                }}
-                onFollowMe={(on) => {
-                  setFollowMe(on);
-                  engRef.current?.followMe(on);
-                }}
                 onGuide={() => engRef.current?.guideMe()}
               />
             </div>

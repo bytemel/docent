@@ -153,7 +153,7 @@ export class LiveLocation {
 
   setFollow(on: boolean) {
     this.follow = on;
-    if (on && this.track.has) this.map.easeTo({ center: this.shown, duration: 400 });
+    if (on && this.track.has) this.map.easeTo({ center: this.shown, zoom: Math.max(this.map.getZoom(), 16), duration: 500 });
   }
 
   guide() {
