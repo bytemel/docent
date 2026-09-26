@@ -86,7 +86,7 @@ export default function StepPlates({ steps, segments, onEdit, onReset }: Props) 
                 <span>{String(i + 1).padStart(2, "0")}</span>
                 {s.atM > 0 ? (
                   <>
-                    <span aria-hidden className="h-px w-3 bg-current opacity-60" />
+                    <span aria-hidden className="size-1 rounded-full bg-current opacity-60" />
                     <span>{formatDistance(s.atM)}</span>
                   </>
                 ) : null}
