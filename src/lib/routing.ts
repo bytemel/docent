@@ -67,11 +67,51 @@ export interface RouteOption {
   labels: RouteLabel[];
 }
 
+const optionCache = new Map<string, RouteOption[]>();
+
+function isOption(o: unknown): o is RouteOption {
+  const r = o as RouteOption;
+  return (
+    !!r &&
+    typeof r.id === "string" &&
+    Array.isArray(r.geometry) &&
+    r.geometry.length >= 2 &&
+    Number.isFinite(r.distanceM) &&
+    Number.isFinite(r.durationS) &&
+    Array.isArray(r.labels)
+  );
+}
+
+export function cachedOptions(profile: RoutingProfile, points: LngLat[]): RouteOption[] | undefined {
+  return optionCache.get(`${routeUrl(profile, points)}&alt=1`);
+}
+
 export async function routeOptions(
   profile: RoutingProfile,
   points: LngLat[],
   signal?: AbortSignal,
 ): Promise<RouteOption[]> {
-  const leg = await routeLeg(profile, points, signal);
-  return [{ id: "r0", geometry: leg.geometry, distanceM: leg.distanceM, durationS: 0, labels: ["shortest", "fastest"] }];
+  const url = `${routeUrl(profile, points)}&alt=1`;
+  const hit = optionCache.get(url);
+  if (hit) return hit;
+  const res = await fetch(url, { signal });
+  let body: unknown = null;
+  try {
+    body = await res.json();
+  } catch {
+    body = null;
+  }
+  if (!res.ok) {
+    const msg = (body as { error?: string } | null)?.error ?? "Routing failed";
+    throw new RouteError(res.status, msg);
+  }
+  const raw = (body as { routes?: unknown[] } | null)?.routes;
+  const list = Array.isArray(raw) ? raw.filter(isOption) : [];
+  if (!list.length) throw new RouteError(502, "Bad route");
+  if (optionCache.size >= MAX_CACHE) {
+    const first = optionCache.keys().next().value;
+    if (first !== undefined) optionCache.delete(first);
+  }
+  optionCache.set(url, list);
+  return list;
 }
