@@ -278,6 +278,22 @@ describe("helpers", () => {
   });
 });
 
+it("still says Turn left now when a fix lands right at the turn", () => {
+  const route = lRoute();
+  const a = createAnnouncer(route, "walk", 300);
+  expect(a.update(399)).toBe("Turn left now");
+  expect(createAnnouncer(route, "walk", 380).update(430)).toBeNull();
+});
+
+it("joins two maneuvers crossed in one update", () => {
+  const route = lRoute(400, 300);
+  const a = createAnnouncer(route, "walk", 380);
+  const extra = { ...route, maneuvers: route.maneuvers.map((x) => (x.kind === "arrive" ? { ...x, atM: 437 } : x)) };
+  const b = createAnnouncer(extra, "walk", 385);
+  expect(a.update(392)).toBe("Turn left now");
+  expect(b.update(408)).toBe("Turn left now. Then in 30 metres, arrive at Green gate");
+});
+
 it("returns every crossed trigger in order when a fix jumps ahead", () => {
   const route = lRoute();
   const due = dueAnnouncements(route, 0, 380, "walk");

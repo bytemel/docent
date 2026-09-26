@@ -305,9 +305,9 @@ export function dueAnnouncements(route: NavRoute, prevAtM: number, atM: number, 
         if (trigger <= prevAt + PASS_M || m.atM - atM <= info.atTurnM) continue;
         if (crossed(trigger)) out.push({ key: `${i}:${th}`, text: SAY.inDistance(spokenDistance(th), m.text), triggerM: trigger });
       }
-      const trigger = m.atM - info.atTurnM;
-      if (crossed(trigger)) out.push({ key: `${i}:now`, text: m.now, triggerM: trigger });
     }
+    const nowAt = m.atM - info.atTurnM;
+    if (crossed(nowAt) && atM - m.atM < info.atTurnM) out.push({ key: `${i}:now`, text: m.now, triggerM: nowAt });
     const nxt = list.slice(i + 1).find((n) => n.kind !== "depart");
     if (!nxt || m.kind === "arrive") return;
     const gap = nxt.atM - m.atM;
@@ -327,6 +327,7 @@ export function startAnnouncement(route: NavRoute, activity: Activity, atM = 0):
   if (!first) return lead.trim();
   const dist = first.atM - atM;
   if (first.kind === "arrive" && dist <= info.arriveM) return first.now;
+  if (dist <= info.atTurnM * 2) return `${lead}${first.text}.`;
   if (dist > info.thresholds[0]) return `${lead}${SAY.continueFor(spokenDistance(dist))}, ${SAY.thenTurn(first.text)}.`;
   return `${lead}${SAY.inDistance(spokenDistance(dist), first.text)}.`;
 }
@@ -344,7 +345,11 @@ export function createAnnouncer(route: NavRoute, activity: Activity, startAtM = 
       const due = dueAnnouncements(route, prev, atM, activity).filter((a) => !fired.has(a.key));
       prev = atM;
       due.forEach((a) => fired.add(a.key));
-      return due.length ? due[due.length - 1].text : null;
+      const byManeuver = new Map<string, string>();
+      for (const a of due) byManeuver.set(a.key.split(":")[0], a.text);
+      const [first, second] = [...byManeuver.values()];
+      if (!first) return null;
+      return second ? `${first}. ${SAY.then(second)}` : first;
     },
     current(atM) {
       const m = route.maneuvers[upcoming(route, atM)];

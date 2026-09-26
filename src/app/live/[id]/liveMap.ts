@@ -63,8 +63,8 @@ function guestDot(label: string): { el: HTMLElement; arrow: HTMLElement } {
   el.dataset.live = "true";
   el.innerHTML =
     '<span class="absolute h-8 w-8 rounded-full bg-accent opacity-30 motion-safe:animate-ping group-data-[live=false]:hidden"></span>' +
-    '<span data-arrow class="absolute inset-0 hidden transition-transform duration-500"><svg viewBox="0 0 56 56" class="h-full w-full" aria-hidden="true"><path d="M28 2 L36 16 L28 13 L20 16 Z" fill="var(--accent)" stroke="var(--surface)" stroke-width="2" stroke-linejoin="round"/></svg></span>' +
-    '<span class="relative h-5 w-5 rounded-full border-[3px] border-surface bg-accent shadow-float group-data-[live=false]:bg-ink-3"></span>';
+    '<span data-arrow class="absolute inset-0 hidden transition-transform duration-500"><svg viewBox="0 0 56 56" class="h-full w-full" aria-hidden="true"><path d="M28 2 L36 16 L28 13 L20 16 Z" fill="var(--accent)" stroke="var(--sign)" stroke-width="2" stroke-linejoin="round"/></svg></span>' +
+    '<span class="relative h-5 w-5 rounded-full border-[4px] border-sign bg-accent shadow-float group-data-[live=false]:bg-ink-3"></span>';
   return { el, arrow: el.querySelector("[data-arrow]") as HTMLElement };
 }
 
@@ -78,13 +78,16 @@ export class LiveMap {
   private dot: { el: HTMLElement; arrow: HTMLElement; marker: Marker } | null = null;
   private last: GuestView | null = null;
   private accent: string;
+  private sign: string;
   private centredAt = -Infinity;
 
   constructor(private init: LiveMapInit) {
     const coords = init.tl.coords.length ? init.tl.coords : ([[36.8219, -1.2921]] as LngLat[]);
     const b = bbox(coords);
     this.bounds = new LngLatBounds([b[0], b[1]], [b[2], b[3]]);
-    this.accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#d9480f";
+    const css = getComputedStyle(document.documentElement);
+    this.accent = css.getPropertyValue("--accent").trim() || "#ffc61a";
+    this.sign = css.getPropertyValue("--sign").trim() || "#101214";
     ensureMapWorker({ setWorkerUrl, getVersion });
     this.map = new MLMap({
       container: init.container,
@@ -117,8 +120,8 @@ export class LiveMap {
   private padding() {
     const w = this.init.container.clientWidth;
     const h = this.init.container.clientHeight;
-    if (w >= 640) return { top: 48, bottom: 48, left: Math.min(420, Math.max(0, w - 220)), right: 48 };
-    return { top: 32, bottom: Math.min(300, Math.max(0, h - 200)), left: 24, right: 24 };
+    if (w >= 768) return { top: 48, bottom: 48, left: Math.min(448, Math.max(0, w - 220)), right: 48 };
+    return { top: Math.min(170, h / 3), bottom: Math.min(250, Math.max(0, h - 320)), left: 24, right: 24 };
   }
 
   private addRoute() {
@@ -188,7 +191,7 @@ export class LiveMap {
       type: "line",
       source: "lv-trail",
       layout: { "line-join": "round", "line-cap": "round" },
-      paint: { "line-color": this.accent, "line-width": 4, "line-opacity": ["get", "o"] },
+      paint: { "line-color": this.sign, "line-width": 4, "line-opacity": ["get", "o"] },
     });
   }
 

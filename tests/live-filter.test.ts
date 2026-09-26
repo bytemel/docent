@@ -56,6 +56,15 @@ describe("smoothing", () => {
   });
 });
 
+describe("speed without a speed reading", () => {
+  it("keeps up with a runner when the phone gives no speed", () => {
+    const f = createLiveFilter();
+    let out: LiveFix | null = null;
+    for (let i = 0; i <= 30; i++) out = f.push(fix(i * 12, 0, i * 1000, 5, null));
+    expect(haversine(m(360, 0), [out!.lng, out!.lat])).toBeLessThan(8);
+  });
+});
+
 describe("outliers", () => {
   it("rejects fixes worse than 100 m", () => {
     const f = createLiveFilter();
