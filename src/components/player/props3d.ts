@@ -1,221 +1,283 @@
 import {
   BoxGeometry,
-  BufferGeometry,
+  CanvasTexture,
   CircleGeometry,
-  ConeGeometry,
   CylinderGeometry,
   Group,
-  Material,
   Mesh,
   MeshBasicMaterial,
-  MeshLambertMaterial,
   RingGeometry,
-  SphereGeometry,
   TorusGeometry,
+  type Material,
 } from "three";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { MODES } from "@/lib/modes";
 import type { Mode, Walker } from "@/lib/types";
+import { Kit } from "./kit3d";
+import { createPerson, type Person, type PersonOptions } from "./person3d";
 import { PROP } from "./props2d";
 
 export type Vehicle = Exclude<Mode, "walk">;
 
-export interface WalkerRig {
+export interface VehicleRig {
   root: Group;
-  legA: Group;
-  legB: Group;
-  armA: Group;
-  armB: Group;
+  wheels: Group[];
+  wheelR: number;
+  crank: Group | null;
+  rider: Person | null;
 }
 
 export interface Props3D {
-  walker: WalkerRig;
-  vehicles: Record<Vehicle, Group>;
-  shadow: Mesh<CircleGeometry, MeshBasicMaterial>;
+  walker: Person;
+  walkerRoot: Group;
+  vehicles: Record<Vehicle, VehicleRig>;
+  shadow: Mesh;
+  contact: Mesh;
+  triangles: Record<Vehicle | "walk", number>;
   dispose(): void;
 }
 
-const ACCENT = "#ffc61a";
-const ACCENT_INK = "#101214";
-
 export const SCALE = { walker: 17, car: 10, matatu: 8.5, boda: 15.5, bike: 16.5 };
 
-class Kit {
-  geos: BufferGeometry[] = [];
-  mats: Material[] = [];
-  private matCache = new Map<string, MeshLambertMaterial>();
+const ACCENT = "#ffc61a";
+const ACCENT_INK = "#101214";
+const RIM = "#c9cdd2";
+const TAIL = "#b42318";
 
-  mat(color: string): MeshLambertMaterial {
-    let m = this.matCache.get(color);
-    if (!m) {
-      m = new MeshLambertMaterial({ color });
-      this.matCache.set(color, m);
-      this.mats.push(m);
-    }
-    return m;
-  }
+export { createPerson };
 
-  geo<T extends BufferGeometry>(g: T): T {
-    this.geos.push(g);
-    return g;
-  }
+export function createPersonModel(opts: PersonOptions): { person: Person; dispose(): void } {
+  const kit = new Kit();
+  return { person: createPerson(kit, opts), dispose: () => kit.dispose() };
+}
 
-  mesh(g: BufferGeometry, color: string, x = 0, y = 0, z = 0): Mesh {
-    const m = new Mesh(g, this.mat(color));
-    m.position.set(x, y, z);
-    m.frustumCulled = false;
-    return m;
-  }
+function rbox(kit: Kit, w: number, h: number, d: number, r: number, mat: Material, x = 0, y = 0, z = 0, seg = 2): Mesh {
+  const key = `rb|${w}|${h}|${d}|${r}|${seg}`;
+  return kit.mesh(kit.geo(key, () => new RoundedBoxGeometry(w, h, d, seg, r)), mat, x, y, z);
+}
 
-  box(w: number, h: number, d: number, color: string, x = 0, y = 0, z = 0): Mesh {
-    return this.mesh(this.geo(new BoxGeometry(w, h, d)), color, x, y, z);
-  }
+function box(kit: Kit, w: number, h: number, d: number, mat: Material, x = 0, y = 0, z = 0): Mesh {
+  return kit.mesh(kit.geo(`b|${w}|${h}|${d}`, () => new BoxGeometry(w, h, d)), mat, x, y, z);
+}
 
-  wheel(r: number, width: number, x: number, y: number, z: number): Mesh {
-    const g = this.geo(new CylinderGeometry(r, r, width, 12));
-    const m = this.mesh(g, PROP.tyre, x, y, z);
-    m.rotation.z = Math.PI / 2;
-    return m;
-  }
+function carWheel(kit: Kit, r: number, width: number): Group {
+  const w = new Group();
+  const tyre = kit.mesh(kit.geo(`tyre|${r}|${width}`, () => new CylinderGeometry(r, r, width, 16)), kit.mat(PROP.tyre, { roughness: 0.9 }));
+  tyre.rotation.z = Math.PI / 2;
+  const rim = kit.mesh(kit.geo(`rim|${r}|${width}`, () => new CylinderGeometry(r * 0.58, r * 0.58, width + 0.02, 10)), kit.mat(RIM, { roughness: 0.3, metalness: 0.6 }));
+  rim.rotation.z = Math.PI / 2;
+  const spoke = box(kit, width + 0.04, r * 1.05, r * 0.16, kit.mat(PROP.tyre, { roughness: 0.9 }));
+  w.add(tyre, rim, spoke);
+  return w;
+}
 
-  dispose() {
-    for (const g of this.geos) g.dispose();
-    for (const m of this.mats) m.dispose();
-    this.geos = [];
-    this.mats = [];
-    this.matCache.clear();
+function thinWheel(kit: Kit, r: number, tube: number): Group {
+  const w = new Group();
+  const tyre = kit.mesh(kit.geo(`ttyre|${r}|${tube}`, () => new TorusGeometry(r, tube, 6, 16)), kit.mat(PROP.tyre, { roughness: 0.9 }));
+  tyre.rotation.y = Math.PI / 2;
+  const rim = kit.mesh(kit.geo(`trim|${r}`, () => new TorusGeometry(r * 0.82, 0.018, 3, 16)), kit.mat(RIM, { roughness: 0.3, metalness: 0.6 }));
+  rim.rotation.y = Math.PI / 2;
+  const spokeMat = kit.mat(RIM, { roughness: 0.3, metalness: 0.6 });
+  const a = box(kit, 0.02, r * 1.64, 0.02, spokeMat);
+  const b = box(kit, 0.02, 0.02, r * 1.64, spokeMat);
+  w.add(tyre, rim, a, b);
+  return w;
+}
+
+function lamps(kit: Kit, g: Group, width: number, y: number, front: number, back: number) {
+  const lamp = kit.mat(PROP.lamp, { emissive: PROP.lamp, roughness: 0.3 });
+  const tail = kit.mat(TAIL, { emissive: TAIL, roughness: 0.4 });
+  for (const s of [-1, 1]) {
+    g.add(rbox(kit, 0.34, 0.14, 0.06, 0.03, lamp, s * width, y, front, 1));
+    g.add(rbox(kit, 0.3, 0.12, 0.06, 0.03, tail, s * width, y, back, 1));
   }
 }
 
-function limb(kit: Kit, radius: number, length: number, color: string, x: number, y: number): Group {
-  const pivot = new Group();
-  pivot.position.set(x, y, 0);
-  const g = kit.geo(new CylinderGeometry(radius, radius * 0.9, length, 8));
-  pivot.add(kit.mesh(g, color, 0, -length / 2, 0));
-  return pivot;
-}
-
-function buildWalker(kit: Kit, kind: Walker, dark: boolean): WalkerRig {
-  const ink = dark ? "#e4e4e7" : "#27272a";
-  const shirt = MODES.walk.color;
+function buildCar(kit: Kit): VehicleRig {
+  const paint = kit.mat(MODES.car.color, { roughness: 0.38, metalness: 0.25 });
+  const glass = kit.mat(PROP.glass, { roughness: 0.15, metalness: 0.4 });
   const root = new Group();
-  const hip = kind === "woman" ? 0.95 : 0.9;
-  const legA = limb(kit, 0.075, hip, ink, 0.11, hip);
-  const legB = limb(kit, 0.075, hip, ink, -0.11, hip);
-  const armA = limb(kit, 0.06, 0.62, ink, 0.25, 1.45);
-  const armB = limb(kit, 0.06, 0.62, ink, -0.25, 1.45);
-  root.add(legA, legB, armA, armB);
-  if (kind === "man") {
-    root.add(kit.box(0.46, 0.62, 0.26, shirt, 0, 1.2, 0));
-  } else if (kind === "woman") {
-    root.add(kit.mesh(kit.geo(new CylinderGeometry(0.12, 0.13, 0.5, 8)), shirt, 0, 1.28, 0));
-    root.add(kit.mesh(kit.geo(new ConeGeometry(0.36, 0.6, 12)), shirt, 0, 0.95, 0));
-  } else {
-    root.add(kit.mesh(kit.geo(new CylinderGeometry(0.1, 0.1, 0.6, 8)), ink, 0, 1.2, 0));
-  }
-  root.add(kit.box(0.56, 0.08, 0.1, kind === "neutral" ? ink : shirt, 0, 1.47, 0));
-  root.add(kit.mesh(kit.geo(new SphereGeometry(0.17, 12, 8)), ink, 0, 1.72, 0));
-  return { root, legA, legB, armA, armB };
-}
-
-function buildRider(kit: Kit, shirt: string, helmet: string, y: number, z: number, w = 1): Group {
-  const g = new Group();
-  g.position.set(0, y, z);
-  g.add(kit.box(0.4 * w, 0.55, 0.26 * w, shirt, 0, 0.3, 0.05));
-  g.add(kit.mesh(kit.geo(new SphereGeometry(0.17 * Math.sqrt(w), 12, 8)), helmet, 0, 0.72, 0));
-  const thighs = kit.box(0.34 * w, 0.14, 0.45, PROP.rider, 0, 0.02, -0.18);
-  const armL = kit.box(0.08 * w, 0.08 * w, 0.5, shirt, 0.2 * w, 0.42, -0.25);
-  const armR = kit.box(0.08 * w, 0.08 * w, 0.5, shirt, -0.2 * w, 0.42, -0.25);
-  armL.rotation.x = 0.5;
-  armR.rotation.x = 0.5;
-  g.add(thighs, armL, armR);
-  return g;
-}
-
-function buildCar(kit: Kit): Group {
-  const c = MODES.car.color;
-  const g = new Group();
-  g.add(kit.box(1.8, 0.6, 4.3, c, 0, 0.55, 0));
-  g.add(kit.box(1.6, 0.5, 2.2, PROP.glass, 0, 1.08, 0.15));
-  g.add(kit.box(1.62, 0.08, 2.0, c, 0, 1.36, 0.2));
+  root.add(rbox(kit, 1.8, 0.62, 4.4, 0.2, paint, 0, 0.58, 0));
+  root.add(rbox(kit, 1.58, 0.56, 2.3, 0.22, paint, 0, 1.12, 0.18));
+  root.add(rbox(kit, 1.62, 0.36, 2.36, 0.14, glass, 0, 1.14, 0.18));
+  lamps(kit, root, 0.6, 0.66, -2.2, 2.2);
+  const wheels: Group[] = [];
   for (const [x, z] of [
-    [0.85, -1.35],
-    [-0.85, -1.35],
-    [0.85, 1.35],
-    [-0.85, 1.35],
-  ])
-    g.add(kit.wheel(0.34, 0.26, x, 0.34, z));
-  g.add(kit.box(1.5, 0.12, 0.05, PROP.lamp, 0, 0.62, -2.16));
-  return g;
+    [0.86, -1.35],
+    [-0.86, -1.35],
+    [0.86, 1.35],
+    [-0.86, 1.35],
+  ]) {
+    const w = carWheel(kit, 0.34, 0.24);
+    w.position.set(x, 0.34, z);
+    wheels.push(w);
+    root.add(w);
+  }
+  return { root, wheels, wheelR: 0.34, crank: null, rider: null };
 }
 
-function buildMatatu(kit: Kit): Group {
-  const c = MODES.matatu.color;
-  const g = new Group();
-  g.add(kit.box(2.0, 1.9, 5.6, c, 0, 1.35, 0));
-  g.add(kit.box(2.04, 0.3, 5.64, PROP.stripe, 0, 0.8, 0));
-  g.add(kit.box(2.06, 0.55, 3.9, PROP.glass, 0, 1.75, 0.35));
-  g.add(kit.box(1.8, 0.6, 0.06, PROP.glass, 0, 1.7, -2.81));
-  g.add(kit.box(1.4, 0.06, 4.6, PROP.stripe, 0, 2.33, 0.1));
+function buildMatatu(kit: Kit): VehicleRig {
+  const paint = kit.mat(MODES.matatu.color, { roughness: 0.45, metalness: 0.15 });
+  const stripe = kit.mat(PROP.stripe, { roughness: 0.5 });
+  const glass = kit.mat(PROP.glass, { roughness: 0.15, metalness: 0.4 });
+  const rack = kit.mat(PROP.tyre, { roughness: 0.6, metalness: 0.3 });
+  const root = new Group();
+  root.add(rbox(kit, 2.05, 1.95, 5.9, 0.24, paint, 0, 1.36, 0));
+  root.add(rbox(kit, 2.09, 0.28, 5.94, 0.1, stripe, 0, 0.86, 0));
+  root.add(rbox(kit, 2.1, 0.62, 4.3, 0.12, glass, 0, 1.8, 0.4));
+  root.add(rbox(kit, 1.78, 0.78, 0.12, 0.08, glass, 0, 1.72, -2.92));
+  root.add(rbox(kit, 1.5, 0.6, 0.12, 0.08, glass, 0, 1.78, 2.92, 1));
+  for (const s of [-1, 1]) root.add(box(kit, 0.06, 0.08, 4.4, rack, s * 0.78, 2.42, 0.2));
+  for (const z of [-1.6, -0.5, 0.6, 1.7]) root.add(box(kit, 1.64, 0.05, 0.06, rack, 0, 2.44, z));
+  lamps(kit, root, 0.68, 0.72, -2.96, 2.96);
+  const wheels: Group[] = [];
   for (const [x, z] of [
-    [0.95, -1.8],
-    [-0.95, -1.8],
-    [0.95, 1.8],
-    [-0.95, 1.8],
-  ])
-    g.add(kit.wheel(0.4, 0.3, x, 0.4, z));
-  g.add(kit.box(1.7, 0.14, 0.05, PROP.lamp, 0, 0.75, -2.82));
-  return g;
+    [0.96, -1.85],
+    [-0.96, -1.85],
+    [0.96, 1.85],
+    [-0.96, 1.85],
+  ]) {
+    const w = carWheel(kit, 0.4, 0.3);
+    w.position.set(x, 0.4, z);
+    wheels.push(w);
+    root.add(w);
+  }
+  return { root, wheels, wheelR: 0.4, crank: null, rider: null };
 }
 
-function buildTwoWheeler(kit: Kit, mode: "boda" | "bike", dark: boolean): Group {
-  const rider = dark ? "#d4d4d8" : PROP.rider;
-  const c = MODES[mode].color;
-  const g = new Group();
-  const r = mode === "boda" ? 0.32 : 0.34;
-  const tube = mode === "boda" ? 0.09 : 0.06;
-  for (const z of [-0.7, 0.7]) {
-    const w = new Mesh(kit.geo(new TorusGeometry(r, tube, 6, 14)), kit.mat(PROP.tyre));
-    w.position.set(0, r, z);
-    w.rotation.y = Math.PI / 2;
-    w.frustumCulled = false;
-    g.add(w);
+function buildBoda(kit: Kit, kind: Walker, dark: boolean): VehicleRig {
+  const body = kit.mat(MODES.boda.color, { roughness: 0.4, metalness: 0.2 });
+  const frame = kit.mat(PROP.tyre, { roughness: 0.5, metalness: 0.4 });
+  const seat = kit.mat(PROP.helmet, { roughness: 0.7 });
+  const lamp = kit.mat(PROP.lamp, { emissive: PROP.lamp, roughness: 0.3 });
+  const root = new Group();
+  root.add(rbox(kit, 0.26, 0.3, 1.15, 0.08, frame, 0, 0.58, 0.02, 1));
+  root.add(rbox(kit, 0.46, 0.26, 0.5, 0.1, body, 0, 0.84, -0.22, 1));
+  root.add(rbox(kit, 0.38, 0.1, 0.66, 0.05, seat, 0, 0.9, 0.3, 1));
+  root.add(rbox(kit, 0.34, 0.2, 0.34, 0.06, body, 0, 0.58, 0.72, 1));
+  const fork = box(kit, 0.06, 0.62, 0.06, frame, 0, 0.62, -0.62);
+  fork.rotation.x = -0.35;
+  root.add(fork, box(kit, 0.82, 0.05, 0.05, frame, 0, 1.02, -0.52));
+  root.add(rbox(kit, 0.22, 0.16, 0.08, 0.04, lamp, 0, 0.9, -0.66, 1));
+  const wheels: Group[] = [];
+  for (const z of [-0.74, 0.72]) {
+    const w = thinWheel(kit, 0.31, 0.075);
+    w.position.set(0, 0.31, z);
+    wheels.push(w);
+    root.add(w);
   }
-  if (mode === "boda") {
-    g.add(kit.box(0.51, 0.36, 1.2, c, 0, 0.6, 0));
-    g.add(kit.box(0.45, 0.14, 0.7, PROP.helmet, 0, 0.84, 0.15));
-    g.add(kit.box(0.8, 0.06, 0.06, PROP.tyre, 0, 1.0, -0.62));
-    g.add(buildRider(kit, rider, PROP.helmet, 0.9, 0.2, 1.5));
-  } else {
-    g.add(kit.box(0.07, 0.07, 1.2, c, 0, 0.62, 0));
-    const down = kit.box(0.07, 0.6, 0.07, c, 0, 0.55, 0.15);
-    down.rotation.x = -0.35;
-    g.add(down);
-    g.add(kit.box(0.6, 0.05, 0.05, PROP.tyre, 0, 0.98, -0.62));
-    g.add(buildRider(kit, c, PROP.helmet, 0.92, 0.25));
+  const rider = createPerson(kit, { kind, shirt: MODES.boda.color, dark, seat: "pegs" });
+  rider.root.position.set(0, 1.03, 0.22);
+  rider.root.scale.set(1.25, 1, 1.1);
+  root.add(rider.root);
+  return { root, wheels, wheelR: 0.31, crank: null, rider };
+}
+
+function buildBike(kit: Kit, kind: Walker, dark: boolean): VehicleRig {
+  const tube = kit.mat(MODES.bike.color, { roughness: 0.35, metalness: 0.35 });
+  const dark2 = kit.mat(PROP.tyre, { roughness: 0.6, metalness: 0.3 });
+  const root = new Group();
+  const top = box(kit, 0.05, 0.05, 0.62, tube, 0, 0.92, -0.08);
+  top.rotation.x = -0.12;
+  const down = box(kit, 0.055, 0.78, 0.055, tube, 0, 0.6, -0.26);
+  down.rotation.x = 0.72;
+  const seatTube = box(kit, 0.05, 0.62, 0.05, tube, 0, 0.62, 0.16);
+  seatTube.rotation.x = -0.28;
+  const stay = box(kit, 0.04, 0.04, 0.58, tube, 0, 0.34, 0.4);
+  const fork = box(kit, 0.04, 0.7, 0.04, tube, 0, 0.62, -0.6);
+  fork.rotation.x = -0.3;
+  root.add(top, down, seatTube, stay, fork);
+  root.add(box(kit, 0.56, 0.035, 0.035, dark2, 0, 1.02, -0.52), rbox(kit, 0.16, 0.06, 0.28, 0.03, dark2, 0, 0.96, 0.24, 1));
+  const crank = new Group();
+  crank.position.set(0, 0.32, 0.08);
+  const arm = box(kit, 0.03, 0.34, 0.03, dark2);
+  const pedalL = box(kit, 0.12, 0.03, 0.08, dark2, -0.07, 0.17, 0);
+  const pedalR = box(kit, 0.12, 0.03, 0.08, dark2, 0.07, -0.17, 0);
+  crank.add(arm, pedalL, pedalR);
+  root.add(crank);
+  const wheels: Group[] = [];
+  for (const z of [-0.72, 0.68]) {
+    const w = thinWheel(kit, 0.34, 0.028);
+    w.position.set(0, 0.34, z);
+    wheels.push(w);
+    root.add(w);
   }
-  return g;
+  const rider = createPerson(kit, { kind, shirt: MODES.bike.color, dark, seat: "pedal" });
+  rider.root.position.set(0, 1.04, 0.28);
+  root.add(rider.root);
+  return { root, wheels, wheelR: 0.34, crank, rider };
+}
+
+function softShadow(): CanvasTexture | null {
+  if (typeof document === "undefined") return null;
+  const c = document.createElement("canvas");
+  c.width = 64;
+  c.height = 64;
+  const ctx = c.getContext("2d");
+  if (!ctx) return null;
+  const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, "rgba(16,18,20,0.5)");
+  grad.addColorStop(0.6, "rgba(16,18,20,0.22)");
+  grad.addColorStop(1, "rgba(16,18,20,0)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 64, 64);
+  return new CanvasTexture(c);
+}
+
+export function countTriangles(root: Group): number {
+  let n = 0;
+  root.traverse((o) => {
+    const m = o as Mesh;
+    if (!m.isMesh) return;
+    const g = m.geometry;
+    n += (g.index ? g.index.count : g.getAttribute("position").count) / 3;
+  });
+  return Math.round(n);
 }
 
 export function buildProps(kind: Walker, dark: boolean): Props3D {
   const kit = new Kit();
-  const walker = buildWalker(kit, kind, dark);
-  walker.root.scale.setScalar(SCALE.walker);
-  const vehicles: Record<Vehicle, Group> = {
+  const walker = createPerson(kit, { kind, shirt: MODES.walk.color, dark });
+  const walkerRoot = new Group();
+  walkerRoot.add(walker.root);
+  walkerRoot.scale.setScalar(SCALE.walker);
+  const vehicles: Record<Vehicle, VehicleRig> = {
     car: buildCar(kit),
     matatu: buildMatatu(kit),
-    boda: buildTwoWheeler(kit, "boda", dark),
-    bike: buildTwoWheeler(kit, "bike", dark),
+    boda: buildBoda(kit, kind, dark),
+    bike: buildBike(kit, kind, dark),
   };
-  for (const k of Object.keys(vehicles) as Vehicle[]) vehicles[k].scale.setScalar(SCALE[k]);
-  const shadowMat = new MeshBasicMaterial({ color: ACCENT, transparent: true, opacity: 0.42, depthWrite: false });
-  const ringMat = new MeshBasicMaterial({ color: ACCENT_INK, transparent: true, opacity: 0.9, depthWrite: false });
-  kit.mats.push(shadowMat, ringMat);
-  const shadow = new Mesh(kit.geo(new CircleGeometry(1, 28)), shadowMat);
-  const ring = new Mesh(kit.geo(new RingGeometry(0.9, 1, 40)), ringMat);
-  ring.position.z = 0.001;
-  ring.frustumCulled = false;
+  for (const k of Object.keys(vehicles) as Vehicle[]) vehicles[k].root.scale.setScalar(SCALE[k]);
+
+  const disc = kit.own("disc", () => new MeshBasicMaterial({ color: ACCENT, transparent: true, opacity: 0.34, depthWrite: false }));
+  const ringMat = kit.own("ring", () => new MeshBasicMaterial({ color: ACCENT_INK, transparent: true, opacity: 0.85, depthWrite: false }));
+  const shadow = kit.mesh(kit.geo("disc", () => new CircleGeometry(1, 32)), disc);
+  const ring = kit.mesh(kit.geo("ring", () => new RingGeometry(0.92, 1, 48)), ringMat, 0, 0, 0.002);
   shadow.add(ring);
   shadow.rotation.x = -Math.PI / 2;
-  shadow.frustumCulled = false;
-  return { walker, vehicles, shadow, dispose: () => kit.dispose() };
+
+  const tex = softShadow();
+  const contactMat = kit.own("contact", () => new MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, color: "#ffffff" }));
+  const contact = kit.mesh(kit.geo("contact", () => new CircleGeometry(1, 24)), contactMat);
+  contact.rotation.x = -Math.PI / 2;
+
+  const triangles = {
+    walk: countTriangles(walkerRoot),
+    car: countTriangles(vehicles.car.root),
+    matatu: countTriangles(vehicles.matatu.root),
+    boda: countTriangles(vehicles.boda.root),
+    bike: countTriangles(vehicles.bike.root),
+  };
+  return {
+    walker,
+    walkerRoot,
+    vehicles,
+    shadow,
+    contact,
+    triangles,
+    dispose: () => {
+      tex?.dispose();
+      kit.dispose();
+    },
+  };
 }

@@ -22,7 +22,7 @@ export function walkerSvg(kind: Walker): string {
         ? `<line x1="18" y1="15" x2="18" y2="25" stroke-width="5" ${INK}/><polygon points="18,21 9.5,37 26.5,37" fill="${shirt}"/>`
         : `<line x1="18" y1="15" x2="18" y2="${hip}" stroke-width="5" ${INK}/>`;
   const leg = (c: string) =>
-    `<g class="${c}" style="transform-origin:18px ${hip}px"><line x1="18" y1="${hip}" x2="18" y2="52" stroke-width="4.5" ${INK}/></g>`;
+    `<g class="${c}" style="transform-origin:18px ${hip}px"><line x1="18" y1="${hip}" x2="18" y2="51" stroke-width="4.5" ${INK}/><line x1="17" y1="52.5" x2="23" y2="52.5" stroke-width="4" stroke="#ffc61a"/></g>`;
   const arm = (c: string) => `<g class="${c}"><line x1="18" y1="17" x2="18" y2="29" stroke-width="4" ${INK}/></g>`;
   return `<svg class="dp-walker-svg" viewBox="0 0 36 56" width="36" height="56" aria-hidden="true" fill="none" stroke-linecap="round">
 ${arm("dp-arm-b")}${leg("dp-leg-b")}${torso}${leg("dp-leg-a")}${arm("dp-arm-a")}
