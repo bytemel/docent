@@ -250,6 +250,11 @@ export class LiveMap {
     if (on && this.last && this.ready) this.centre(this.last.pos, true);
   }
 
+  setCreditOffset(px: number) {
+    const el = this.map.getContainer().querySelector<HTMLElement>(".maplibregl-ctrl-bottom-right");
+    if (el) el.style.bottom = `${Math.round(px)}px`;
+  }
+
   resize() {
     this.map.resize();
   }

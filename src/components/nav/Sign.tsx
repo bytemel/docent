@@ -65,7 +65,7 @@ export default function Sign({ arrow, distanceM, text, next, note, onRepeat, com
         >
           {text}
         </span>
-        {next ? <span className="mt-1.5 block truncate text-[15px] font-medium opacity-75">{NAV.then(next)}</span> : null}
+        {next ? <span className="mt-1.5 line-clamp-2 text-[15px] font-medium opacity-75">{NAV.then(next)}</span> : null}
         {note ? <span className="mt-2 inline-block rounded-[8px] bg-accent px-2 py-0.5 text-[15px] font-bold text-accent-ink">{note}</span> : null}
       </span>
     </>

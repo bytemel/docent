@@ -23,6 +23,7 @@ import { NAV, SAY } from "@/strings/nav";
 import type { Follow, NavMap } from "./navMap";
 import { planTrip, type Dest, type Trip } from "./plan";
 import ShareSheet from "./ShareSheet";
+import { useCreditOffset } from "./useCreditOffset";
 import Sign from "./Sign";
 
 type Pad = { top: number; bottom: number; left: number; right: number };
@@ -79,6 +80,7 @@ export default function NavScreen({ trip, activity, dest, doc, firstFix, map, se
   const [share, setShare] = useState<LiveShare | null>(null);
   const plateRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLElement>(null);
+  const sheetRef = useRef<HTMLElement>(null);
   const shareRef = useRef<LiveShare | null>(null);
   const repeatRef = useRef<() => void>(() => {});
   const docRef = useRef(trip.doc);
@@ -96,6 +98,8 @@ export default function NavScreen({ trip, activity, dest, doc, firstFix, map, se
   useEffect(() => {
     shareRef.current = share;
   }, [share]);
+
+  useCreditOffset(map, barRef, sheetRef, `${arrived}|${shareOpen}|${Boolean(share)}`);
 
   useEffect(() => {
     const s = {
@@ -328,7 +332,7 @@ export default function NavScreen({ trip, activity, dest, doc, firstFix, map, se
           <button
             type="button"
             onClick={recentre}
-            className="btn btn-sign btn-lg absolute -top-[68px] right-3 shadow-float md:right-0"
+            className="btn btn-sign btn-lg absolute -top-[104px] right-3 shadow-float md:right-0"
           >
             <Crosshair size={20} weight="bold" aria-hidden />
             {NAV.recentre}
@@ -347,18 +351,18 @@ export default function NavScreen({ trip, activity, dest, doc, firstFix, map, se
                 </p>
               </div>
             </div>
-            {doc?.arrival.note ? <p className="mt-4 text-[17px] leading-snug font-medium">{doc.arrival.note}</p> : null}
+            {doc?.arrival.note ? <p className="mt-4 text-[17px] leading-snug font-medium text-pretty">{doc.arrival.note}</p> : null}
             <button type="button" className="btn btn-primary btn-lg mt-5 w-full" onClick={end}>
               {NAV.done}
             </button>
           </div>
         ) : (
           <>
-            <dl className={`grid gap-2 ${stats.length === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
+            <dl className="flex justify-between gap-1 min-[360px]:gap-2">
               {stats.map((x) => (
-                <div key={x.k} className="min-w-0">
+                <div key={x.k} className="whitespace-nowrap">
                   <dt className="text-[13px] font-semibold text-ink-3">{x.k}</dt>
-                  <dd className="num truncate text-[20px] leading-tight font-bold">
+                  <dd className="num text-[18px] leading-tight font-bold min-[360px]:text-[20px]">
                     {x.v}
                     {x.u ? <span className="ml-0.5 text-[13px] font-semibold text-ink-2">{x.u}</span> : null}
                   </dd>
@@ -401,6 +405,7 @@ export default function NavScreen({ trip, activity, dest, doc, firstFix, map, se
       </section>
       {shareOpen ? (
         <ShareSheet
+          ref={sheetRef}
           share={share}
           getDoc={() => docRef.current}
           onShare={setShare}

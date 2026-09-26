@@ -23,6 +23,7 @@ import { brand } from "@/strings/common";
 import { LIVE_COPY } from "@/strings/live";
 import { Mark } from "../../r/mark";
 import type { FakeMode } from "./fake";
+import { useCreditOffset } from "@/components/nav/useCreditOffset";
 import type { LiveMap, TrailPoint } from "./liveMap";
 
 export interface LiveWatchProps {
@@ -73,6 +74,9 @@ export default function LiveWatch({ id, doc, name, fake }: LiveWatchProps) {
   const [follow, setFollow] = useState(true);
   const [mapState, setMapState] = useState<"loading" | "ready" | "failed">("loading");
   const [toast, setToast] = useState<string | null>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  const creditTarget = useMemo(() => ({ setCreditOffset: (px: number) => liveMap.current?.setCreditOffset(px) }), []);
+  useCreditOffset(mapState === "ready" ? creditTarget : null, panelRef, undefined, Boolean(view));
   const mapRef = useRef<HTMLDivElement>(null);
   const liveMap = useRef<LiveMap | null>(null);
   const trail = useRef<TrailPoint[]>([]);
@@ -227,6 +231,7 @@ export default function LiveWatch({ id, doc, name, fake }: LiveWatchProps) {
         </div>
       </div>
       <section
+        ref={panelRef}
         className="panel absolute inset-x-0 bottom-0 z-10 rounded-b-none p-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:inset-x-auto md:bottom-4 md:left-4 md:w-[400px] md:rounded-b-[18px]"
         aria-label={LIVE_COPY.eyebrow}
       >
@@ -234,7 +239,7 @@ export default function LiveWatch({ id, doc, name, fake }: LiveWatchProps) {
           <h1 className="min-w-0 truncate text-[17px] font-extrabold tracking-[-0.01em]">
             {doc.title.trim() || LIVE_COPY.untitled}
           </h1>
-          <Link href="/" aria-label={brand.name} className="shrink-0 rounded-md">
+          <Link href="/" aria-label={brand.name} className="-m-2 inline-flex size-11 shrink-0 items-center justify-center rounded-md">
             <Mark className="size-7" />
           </Link>
         </div>
@@ -270,7 +275,7 @@ export default function LiveWatch({ id, doc, name, fake }: LiveWatchProps) {
             {LIVE_COPY.copyLink}
           </button>
         </div>
-        <p className="mt-3 flex items-start gap-2 text-[13px] leading-relaxed text-ink-3">
+        <p className="mt-3 flex items-start gap-2 text-[13px] leading-relaxed text-pretty text-ink-3">
           <ShieldCheck size={16} className="mt-px shrink-0" aria-hidden />
           {LIVE_COPY.privacy}
         </p>
