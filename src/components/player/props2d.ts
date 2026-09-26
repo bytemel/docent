@@ -91,8 +91,16 @@ export const PROP_CSS = `
 .dp-veh>svg{display:none}
 .dp-veh>svg.dp-on{display:block}
 .dp-walker-svg{display:block}
-.dp-dot{position:absolute;left:-11px;top:-11px;width:22px;height:22px;border-radius:999px;border:3px solid;box-shadow:0 0 0 7px color-mix(in srgb,var(--dp-halo) 25%,transparent)}
-.dp-disc{position:absolute;left:-24px;top:-24px;width:48px;height:48px;border-radius:999px;opacity:.3}
+.dp-dot{position:absolute;left:-12px;top:-12px;width:24px;height:24px;border-radius:999px;background:var(--accent);border:3px solid var(--accent-ink);box-shadow:0 0 0 2px var(--surface),0 0 0 9px color-mix(in srgb,var(--accent) 35%,transparent)}
+.dp-disc{position:absolute;left:-26px;top:-26px;width:52px;height:52px;border-radius:999px;background:color-mix(in srgb,var(--accent) 40%,transparent);border:2px solid var(--accent-ink)}
+@keyframes dp-plate-in{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+.dp-plate-in{animation:dp-plate-in 160ms ease-out both}
+.dp-range{-webkit-appearance:none;appearance:none;background:transparent;height:44px;width:100%;cursor:pointer}
+.dp-range::-webkit-slider-runnable-track{height:6px;border-radius:6px;background:linear-gradient(to right,var(--ink) 0 var(--dp-fill,0%),var(--line) var(--dp-fill,0%) 100%)}
+.dp-range::-moz-range-track{height:6px;border-radius:6px;background:var(--line)}
+.dp-range::-moz-range-progress{height:6px;border-radius:6px;background:var(--ink)}
+.dp-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;margin-top:-8px;border-radius:999px;background:var(--accent);border:3px solid var(--accent-ink)}
+.dp-range::-moz-range-thumb{width:16px;height:16px;border-radius:999px;background:var(--accent);border:3px solid var(--accent-ink)}
 .dp-arm-a,.dp-arm-b{transform-box:view-box;transform-origin:18px 17px}
 .dp-leg-a,.dp-leg-b{transform-box:view-box}
 .dp-leg-a{transform:rotate(10deg)}

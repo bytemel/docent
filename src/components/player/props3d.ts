@@ -9,6 +9,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshLambertMaterial,
+  RingGeometry,
   SphereGeometry,
   TorusGeometry,
 } from "three";
@@ -32,6 +33,9 @@ export interface Props3D {
   shadow: Mesh<CircleGeometry, MeshBasicMaterial>;
   dispose(): void;
 }
+
+const ACCENT = "#ffc61a";
+const ACCENT_INK = "#101214";
 
 export const SCALE = { walker: 17, car: 10, matatu: 8.5, boda: 15.5, bike: 16.5 };
 
@@ -203,9 +207,14 @@ export function buildProps(kind: Walker, dark: boolean): Props3D {
     bike: buildTwoWheeler(kit, "bike", dark),
   };
   for (const k of Object.keys(vehicles) as Vehicle[]) vehicles[k].scale.setScalar(SCALE[k]);
-  const shadowMat = new MeshBasicMaterial({ color: MODES.walk.color, transparent: true, opacity: 0.35, depthWrite: false });
-  kit.mats.push(shadowMat);
-  const shadow = new Mesh(kit.geo(new CircleGeometry(1, 20)), shadowMat);
+  const shadowMat = new MeshBasicMaterial({ color: ACCENT, transparent: true, opacity: 0.42, depthWrite: false });
+  const ringMat = new MeshBasicMaterial({ color: ACCENT_INK, transparent: true, opacity: 0.9, depthWrite: false });
+  kit.mats.push(shadowMat, ringMat);
+  const shadow = new Mesh(kit.geo(new CircleGeometry(1, 28)), shadowMat);
+  const ring = new Mesh(kit.geo(new RingGeometry(0.9, 1, 40)), ringMat);
+  ring.position.z = 0.001;
+  ring.frustumCulled = false;
+  shadow.add(ring);
   shadow.rotation.x = -Math.PI / 2;
   shadow.frustumCulled = false;
   return { walker, vehicles, shadow, dispose: () => kit.dispose() };

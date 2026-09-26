@@ -81,7 +81,7 @@ export function LiveToggle({
       {tracking ? (
         <button
           type="button"
-          className={followMe ? "btn btn-primary btn-icon shadow-float" : "btn btn-icon shadow-float"}
+          className={followMe ? "btn btn-sign btn-icon shadow-float" : "btn btn-icon border-transparent shadow-float"}
           aria-pressed={followMe}
           aria-label={PLAYER.followMe}
           title={PLAYER.followMe}
@@ -92,12 +92,13 @@ export function LiveToggle({
       ) : null}
       <button
         type="button"
-        className={tracking ? "btn btn-primary shadow-float" : "btn shadow-float"}
+        className={tracking ? "btn btn-sign btn-icon shadow-float" : "btn btn-icon border-transparent shadow-float"}
         aria-pressed={tracking}
+        aria-label={tracking ? PLAYER.stopShowingMe : PLAYER.showMe}
+        title={tracking ? PLAYER.stopShowingMe : PLAYER.showMe}
         onClick={() => (tracking ? onStop() : onStart())}
       >
-        <Crosshair size={18} weight="bold" aria-hidden="true" />
-        {tracking ? PLAYER.stopShowingMe : PLAYER.showMe}
+        <Crosshair size={20} weight="bold" aria-hidden="true" />
       </button>
     </div>
   );
@@ -183,7 +184,7 @@ export default function LivePanel({ loc, arrivalNote, sinkRef, onGuide }: Props)
           {shareLiveLabel(PLAYER.theSender)}
         </button>
       ) : null}
-      <div role="status" aria-live="polite" className="flex flex-col gap-1 text-sm text-ink-2">
+      <div role="status" aria-live="polite" className="flex flex-col gap-1 rounded-[18px] border-[1.5px] border-line p-3 text-sm text-ink-2 empty:hidden">
         {message ? <p>{message}</p> : null}
         {loc.state === "on" && loc.arrived ? (
           <p className="font-semibold text-ink">
@@ -204,7 +205,7 @@ export default function LivePanel({ loc, arrivalNote, sinkRef, onGuide }: Props)
         </button>
       ) : null}
       {share ? (
-        <div className="flex flex-col gap-2 rounded-[12px] bg-surface-2 p-3">
+        <div className="flex flex-col gap-2 rounded-[18px] bg-surface-2 p-3">
           <p className="text-sm font-medium text-ink">{LIVE_TEXT[share.status]}</p>
           <p className="text-xs text-ink-2">{PLAYER.liveLinkNote}</p>
           <div className="flex flex-wrap gap-2">

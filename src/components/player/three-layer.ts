@@ -1,8 +1,7 @@
 import { AmbientLight, Camera, DirectionalLight, Matrix4, Scene, Vector3, WebGLRenderer } from "three";
 import { MercatorCoordinate, type CustomLayerInterface, type Map as MLMap } from "maplibre-gl";
 import type { Timeline, TimelineSample } from "@/lib/timeline";
-import { MODES } from "@/lib/modes";
-import type { Mode, Walker } from "@/lib/types";
+import type { Walker } from "@/lib/types";
 import { buildProps, SCALE, type Props3D, type Vehicle } from "./props3d";
 import type { PropPose } from "./transfer";
 import type { PropRenderer } from "./renderers";
@@ -37,7 +36,6 @@ export class ThreeRenderer implements PropRenderer {
   private walkHeading = 0;
   private walkPhase = 0;
   private hasHeading = false;
-  private discMode: Mode | null = null;
   private removed = false;
   private layer: CustomLayerInterface;
   failed = false;
@@ -157,11 +155,6 @@ export class ThreeRenderer implements PropRenderer {
           : DISC_M.two
       : DISC_M.walker;
     shadow.scale.setScalar(r * zm);
-    const mode = pose.vehicle ?? "walk";
-    if (mode !== this.discMode) {
-      this.discMode = mode;
-      shadow.material.color.set(MODES[mode].color);
-    }
     this.map.triggerRepaint();
   }
 

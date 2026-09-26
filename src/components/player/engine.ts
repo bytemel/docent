@@ -1,6 +1,7 @@
 import { lowerTier, shouldDowngrade, type Tier } from "@/lib/tier";
 import { createSample, sampleTimelineInto, transferAt, type Timeline } from "@/lib/timeline";
 import type { RouteDoc } from "@/lib/types";
+import { formatDistance } from "@/lib/geo";
 import { timeLabel } from "@/strings/player";
 import type { LocationHooks } from "./location";
 import type { PinEl, PlayerScene } from "./scene";
@@ -16,6 +17,8 @@ export interface EngineCallbacks {
   tier(t: Tier, downgraded: boolean): void;
   mapState(s: "loading" | "ready" | "failed"): void;
   noMap(): void;
+  speak(i: number): void;
+  hush(): void;
 }
 
 export interface EngineInit {
@@ -34,6 +37,9 @@ export interface EngineInit {
   scrub: () => HTMLInputElement | null;
   time: () => HTMLElement | null;
   dragging: () => boolean;
+  dist: () => HTMLElement | null;
+  stepsM: number[];
+  startOverview: boolean;
   cb: EngineCallbacks;
 }
 
@@ -101,6 +107,7 @@ export class PlaybackEngine {
           if (this.cancelled) return;
           await this.doApply(o.tier());
           if (this.cancelled) return;
+          if (o.startOverview && !this.wantPlay) scene.showWhole(false);
           this.ready = true;
           this.failed = false;
           clearInterval(this.failTimer);
@@ -114,6 +121,7 @@ export class PlaybackEngine {
   }
 
   private shownT = -1;
+  private quiet = false;
   private shownSec = -1;
 
   private ui() {
@@ -121,6 +129,7 @@ export class PlaybackEngine {
       this.shownT = this.t;
       const sc = this.o.scrub();
       if (sc && !this.o.dragging()) sc.value = this.t.toFixed(2);
+      if (sc) sc.style.setProperty("--dp-fill", `${this.o.tl.totalS > 0 ? ((this.t / this.o.tl.totalS) * 100).toFixed(2) : 0}%`);
     }
     const sec = Math.round(this.t);
     if (sec !== this.shownSec) {
@@ -132,8 +141,33 @@ export class PlaybackEngine {
     let idx = 0;
     for (let i = 0; i < times.length; i++) if (times[i] <= this.t + 0.05) idx = i;
     if (idx !== this.step) {
+      const first = this.step < 0;
       this.step = idx;
       this.o.cb.step(idx);
+      if (!first && !this.quiet && this.playing && this.speed === 1) this.o.cb.speak(idx);
+    }
+    this.quiet = false;
+    this.showDist(idx);
+  }
+
+  private shownDist = "";
+
+  private showDist(idx: number) {
+    const el = this.o.dist();
+    if (!el) return;
+    const m = this.o.stepsM;
+    const at = this.sample.atM;
+    let next = Infinity;
+    for (let j = idx + 1; j < m.length; j++) {
+      if (m[j] > at + 0.5 && Number.isFinite(m[j])) {
+        next = m[j];
+        break;
+      }
+    }
+    const text = Number.isFinite(next) && idx < m.length - 1 ? formatDistance(Math.max(0, next - at)) : "";
+    if (text !== this.shownDist || el.textContent !== text) {
+      this.shownDist = text;
+      el.textContent = text;
     }
   }
 
@@ -190,7 +224,7 @@ export class PlaybackEngine {
     const dt = Math.min(0.5, raw);
     this.last = ts;
     if (this.playing) {
-      this.t += Math.min(0.1, raw) * this.speed;
+      this.t += Math.min(0.25, raw) * this.speed;
       if (this.speed >= 4) {
         const tr = transferAt(this.o.tl, this.t);
         if (tr) this.t = tr.t1;
@@ -260,6 +294,7 @@ export class PlaybackEngine {
     this.o.cb.ended(false);
     this.playing = true;
     this.o.cb.playing(true);
+    if (this.t < 0.05 && this.speed === 1) this.o.cb.speak(Math.max(0, this.step));
     this.startMeasure();
     this.kick();
   }
@@ -271,6 +306,7 @@ export class PlaybackEngine {
     this.playing = false;
     this.fps = null;
     this.o.cb.playing(false);
+    this.o.cb.hush();
     this.kick();
   }
 
@@ -288,6 +324,8 @@ export class PlaybackEngine {
     const total = this.o.tl.totalS;
     this.t = Math.max(0, Math.min(total, t));
     if (this.t < total) this.o.cb.ended(false);
+    this.quiet = true;
+    this.o.cb.hush();
     this.snap();
     this.kick();
   }
@@ -298,6 +336,12 @@ export class PlaybackEngine {
 
   setSpeed(v: number) {
     this.speed = v;
+    if (v !== 1) this.o.cb.hush();
+  }
+
+  refreshDist() {
+    this.shownDist = "";
+    this.showDist(Math.max(0, this.step));
   }
 
   applyTier(t: Tier) {
