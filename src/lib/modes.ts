@@ -14,7 +14,7 @@ export interface ModeInfo {
 export const MODE_ORDER: Mode[] = ["walk", "boda", "matatu", "car", "bike"];
 
 export const MODES: Record<Mode, ModeInfo> = {
-  walk: { label: "Walk", verb: "Walk", color: "#D9480F", speedKmh: 4.8, profile: "foot", dashed: true },
+  walk: { label: "Walk", verb: "Walk", color: "#C2410C", speedKmh: 4.8, profile: "foot", dashed: true },
   boda: { label: "Boda", verb: "Take a boda", color: "#0B7A75", speedKmh: 25, profile: "car", dashed: false },
   matatu: { label: "Matatu", verb: "Take a matatu", color: "#B7791F", speedKmh: 18, profile: "car", dashed: false },
   car: { label: "Car", verb: "Drive", color: "#2F5BD3", speedKmh: 28, profile: "car", dashed: false },
