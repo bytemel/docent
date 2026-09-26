@@ -100,6 +100,33 @@ describe("buildTimeline", () => {
     expect(mixed.transfers).toHaveLength(1);
   });
 
+  it("never goes over 60 s with many short legs", () => {
+    const legs: Segment[] = [];
+    for (let i = 0; i < 20; i++) {
+      legs.push(leg(i % 2 ? "walk" : "matatu", [36.8 + i * 0.001, -1.2], [36.8 + (i + 1) * 0.001, -1.2], 0));
+    }
+    const tl = buildTimeline(doc(legs));
+    expect(tl.transfers).toHaveLength(19);
+    expect(tl.totalS).toBeLessThanOrEqual(MAX_TOTAL_S + 1e-9);
+    expect(tl.totalS).toBeGreaterThanOrEqual(MIN_TOTAL_S);
+    const s = sampleTimeline(tl, tl.totalS);
+    expect(s.atM).toBeCloseTo(tl.totalM, 6);
+  });
+
+  it("survives unknown modes and broken coordinates", () => {
+    const bad = leg("walk", A, B, 100);
+    const d = doc([
+      { ...bad, mode: "plane" as Mode },
+      { ...leg("car", B, C, 400), geometry: [[NaN, -1.2], ["36.8", "-1.2"] as unknown as LngLat, B, C] },
+    ]);
+    const tl = buildTimeline(d);
+    expect(tl.legModes).toEqual(["walk", "car"]);
+    for (let i = 0; i <= 50; i++) {
+      const s = sampleTimeline(tl, (tl.totalS * i) / 50);
+      expect(Number.isFinite(s.pos[0]) && Number.isFinite(s.pos[1]) && Number.isFinite(s.bearing)).toBe(true);
+    }
+  });
+
   it("honours targetSeconds", () => {
     const tl = buildTimeline(multi, { targetSeconds: 30 });
     expect(tl.totalS).toBeCloseTo(30, 5);

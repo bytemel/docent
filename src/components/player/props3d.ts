@@ -33,7 +33,7 @@ export interface Props3D {
   dispose(): void;
 }
 
-export const SCALE = { walker: 11.5, car: 9, matatu: 7.5, boda: 12, bike: 12 };
+export const SCALE = { walker: 17, car: 10, matatu: 8.5, boda: 15.5, bike: 16.5 };
 
 class Kit {
   geos: BufferGeometry[] = [];
@@ -113,14 +113,14 @@ function buildWalker(kit: Kit, kind: Walker, dark: boolean): WalkerRig {
   return { root, legA, legB, armA, armB };
 }
 
-function buildRider(kit: Kit, shirt: string, helmet: string, y: number, z: number): Group {
+function buildRider(kit: Kit, shirt: string, helmet: string, y: number, z: number, w = 1): Group {
   const g = new Group();
   g.position.set(0, y, z);
-  g.add(kit.box(0.4, 0.55, 0.26, shirt, 0, 0.3, 0.05));
-  g.add(kit.mesh(kit.geo(new SphereGeometry(0.17, 12, 8)), helmet, 0, 0.72, 0));
-  const thighs = kit.box(0.34, 0.14, 0.45, PROP.rider, 0, 0.02, -0.18);
-  const armL = kit.box(0.08, 0.08, 0.5, shirt, 0.2, 0.42, -0.25);
-  const armR = kit.box(0.08, 0.08, 0.5, shirt, -0.2, 0.42, -0.25);
+  g.add(kit.box(0.4 * w, 0.55, 0.26 * w, shirt, 0, 0.3, 0.05));
+  g.add(kit.mesh(kit.geo(new SphereGeometry(0.17 * Math.sqrt(w), 12, 8)), helmet, 0, 0.72, 0));
+  const thighs = kit.box(0.34 * w, 0.14, 0.45, PROP.rider, 0, 0.02, -0.18);
+  const armL = kit.box(0.08 * w, 0.08 * w, 0.5, shirt, 0.2 * w, 0.42, -0.25);
+  const armR = kit.box(0.08 * w, 0.08 * w, 0.5, shirt, -0.2 * w, 0.42, -0.25);
   armL.rotation.x = 0.5;
   armR.rotation.x = 0.5;
   g.add(thighs, armL, armR);
@@ -168,7 +168,7 @@ function buildTwoWheeler(kit: Kit, mode: "boda" | "bike", dark: boolean): Group 
   const c = MODES[mode].color;
   const g = new Group();
   const r = mode === "boda" ? 0.32 : 0.34;
-  const tube = mode === "boda" ? 0.09 : 0.04;
+  const tube = mode === "boda" ? 0.09 : 0.06;
   for (const z of [-0.7, 0.7]) {
     const w = new Mesh(kit.geo(new TorusGeometry(r, tube, 6, 14)), kit.mat(PROP.tyre));
     w.position.set(0, r, z);
@@ -177,10 +177,10 @@ function buildTwoWheeler(kit: Kit, mode: "boda" | "bike", dark: boolean): Group 
     g.add(w);
   }
   if (mode === "boda") {
-    g.add(kit.box(0.34, 0.36, 1.2, c, 0, 0.6, 0));
-    g.add(kit.box(0.3, 0.14, 0.7, PROP.helmet, 0, 0.84, 0.15));
+    g.add(kit.box(0.51, 0.36, 1.2, c, 0, 0.6, 0));
+    g.add(kit.box(0.45, 0.14, 0.7, PROP.helmet, 0, 0.84, 0.15));
     g.add(kit.box(0.8, 0.06, 0.06, PROP.tyre, 0, 1.0, -0.62));
-    g.add(buildRider(kit, rider, PROP.helmet, 0.9, 0.2));
+    g.add(buildRider(kit, rider, PROP.helmet, 0.9, 0.2, 1.5));
   } else {
     g.add(kit.box(0.07, 0.07, 1.2, c, 0, 0.62, 0));
     const down = kit.box(0.07, 0.6, 0.07, c, 0, 0.55, 0.15);

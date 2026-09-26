@@ -5,6 +5,8 @@ import { MODES } from "@/lib/modes";
 import type { Tier } from "@/lib/tier";
 import { headingBetween, lngLatAt, type Timeline, type TimelineSample } from "@/lib/timeline";
 import type { LngLat, Mode, RouteDoc } from "@/lib/types";
+import { LiveLocation, type LocationHooks } from "./location";
+import { stepMeters } from "./track";
 import { BasicRenderer, FlatRenderer, type PropRenderer } from "./renderers";
 import { createPose, poseFor } from "./transfer";
 
@@ -25,6 +27,7 @@ export interface SceneInit {
   endpoints: { a: HTMLElement; b: HTMLElement };
   onFollowChange: (follow: boolean) => void;
   onTierFailed: (tier: Tier) => void;
+  onRestore: () => void;
 }
 
 interface LineFeature {
@@ -74,6 +77,8 @@ export class PlayerScene {
   private partialAt = 0;
   private near: boolean[];
   private destroyed = false;
+  private loaded = false;
+  private resizeObs: ResizeObserver | null = null;
   private tierToken = 0;
   private bounds: LngLatBounds;
   private partialFeature: LineFeature = {
@@ -112,23 +117,46 @@ export class PlayerScene {
     this.map.on("rotatestart", userMove);
     this.map.on("pitchstart", userMove);
     this.map.on("zoom", () => this.updateLabels());
+    this.map.on("webglcontextrestored", () => {
+      this.map.once("idle", () => {
+        if (!this.destroyed) this.init.onRestore();
+      });
+    });
+    if (typeof ResizeObserver !== "undefined") {
+      let lastW = init.container.clientWidth;
+      let lastH = init.container.clientHeight;
+      this.resizeObs = new ResizeObserver(() => {
+        const w = init.container.clientWidth;
+        const h = init.container.clientHeight;
+        if (w === lastW && h === lastH) return;
+        lastW = w;
+        lastH = h;
+        if (this.destroyed) return;
+        this.map.resize();
+        if (!this.follow && this.loaded) this.fit(false);
+      });
+      this.resizeObs.observe(init.container);
+    }
     this.map.on("styleimagemissing", (e: { id: string }) => {
       if (!this.map.hasImage(e.id)) this.map.addImage(e.id, { width: 1, height: 1, data: new Uint8Array(4) });
     });
     this.ready = new Promise((resolve) => {
       this.map.once("load", () => {
         if (this.destroyed) return;
+        this.loaded = true;
+        this.map.resize();
         this.addRoute();
         this.addMarkers();
         this.updateLabels(true);
+        this.fit(false);
         resolve();
       });
     });
   }
 
   private addRoute() {
-    const { doc, tl } = { doc: this.init.doc, tl: this.tl };
-    const features = doc.segments.map((seg, i) => {
+    const tl = this.tl;
+    const features = tl.legModes.map((mode, i) => {
       const coords: number[][] = [];
       for (let k = 0; k < tl.coords.length; k++) {
         const m = tl.cum[k];
@@ -137,7 +165,7 @@ export class PlayerScene {
       if (coords.length < 2) coords.push(...coords, tl.coords[tl.coords.length - 1] ?? [0, 0]);
       return {
         type: "Feature" as const,
-        properties: { i, color: MODES[seg.mode].color, dashed: MODES[seg.mode].dashed },
+        properties: { i, color: MODES[mode].color, dashed: MODES[mode].dashed },
         geometry: { type: "LineString" as const, coordinates: coords },
       };
     });
@@ -192,17 +220,21 @@ export class PlayerScene {
     if (last) this.markers.push(new Marker({ element: endpoints.b, anchor: "center" }).setLngLat(last).addTo(this.map));
   }
 
-  async setTier(tier: Tier): Promise<Tier> {
+  async setTier(tier: Tier): Promise<Tier | null> {
     await this.ready;
-    if (this.destroyed) return tier;
+    if (this.destroyed) return null;
     const token = ++this.tierToken;
-    this.renderer?.destroy();
+    try {
+      this.renderer?.destroy();
+    } catch {
+      this.renderer = null;
+    }
     this.renderer = null;
     this.tier = tier;
     if (tier === "3d") {
       try {
         const mod = await import("./three-layer");
-        if (token !== this.tierToken || this.destroyed) return tier;
+        if (token !== this.tierToken || this.destroyed) return null;
         const r = new mod.ThreeRenderer(this.map, this.tl, this.init.doc.walker, this.init.dark, () =>
           this.init.onTierFailed("3d"),
         );
@@ -223,6 +255,7 @@ export class PlayerScene {
 
   setFollow(on: boolean) {
     if (this.tier === "basic") on = false;
+    if (on) this.loc?.setFollow(false);
     if (on && !this.follow) {
       const c = this.map.getCenter();
       this.cam.lng = c.lng;
@@ -239,10 +272,16 @@ export class PlayerScene {
 
   showWhole(animate: boolean) {
     this.setFollow(false);
+    this.fit(animate);
+  }
+
+  private fit(animate: boolean) {
     this.map.stop();
     this.map.setPadding({ top: 0, bottom: 0, left: 0, right: 0 });
+    const c = this.init.container;
+    const pad = Math.max(0, Math.min(48, Math.floor(Math.min(c.clientWidth, c.clientHeight) / 6)));
     this.map.fitBounds(this.bounds, {
-      padding: 48,
+      padding: pad,
       maxZoom: 16,
       pitch: 0,
       bearing: 0,
@@ -299,7 +338,7 @@ export class PlayerScene {
       }
       coords.push([s.pos[0], s.pos[1]]);
     }
-    const mode = this.init.doc.segments[seg]?.mode ?? "walk";
+    const mode = tl.legModes[seg] ?? "walk";
     this.partialFeature.properties.color = MODES[mode].color;
     this.partialFeature.properties.dashed = MODES[mode].dashed;
     this.partialFeature.geometry.coordinates = coords;
@@ -358,6 +397,30 @@ export class PlayerScene {
     this.map.jumpTo(o);
   }
 
+  private loc: LiveLocation | null = null;
+
+  startLocation(hooks: LocationHooks) {
+    if (this.destroyed || !this.loaded) return;
+    if (!this.loc) {
+      const steps = Array.isArray(this.init.doc.steps) ? this.init.doc.steps : [];
+      this.loc = new LiveLocation(this.map, this.tl, stepMeters(this.tl, steps), hooks);
+    }
+    this.loc.start();
+  }
+
+  stopLocation() {
+    this.loc?.stop();
+  }
+
+  followMe(on: boolean) {
+    if (on) this.setFollow(false);
+    this.loc?.setFollow(on);
+  }
+
+  guideMe() {
+    this.loc?.guide();
+  }
+
   snapCamera(s: TimelineSample) {
     if (!this.follow || !this.tier || this.tier === "basic") return;
     this.cam.lng = s.pos[0];
@@ -368,6 +431,10 @@ export class PlayerScene {
     if (this.destroyed) return;
     this.destroyed = true;
     this.tierToken++;
+    this.resizeObs?.disconnect();
+    this.resizeObs = null;
+    this.loc?.destroy();
+    this.loc = null;
     try {
       this.renderer?.destroy();
     } finally {

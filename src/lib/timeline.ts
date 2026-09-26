@@ -1,5 +1,5 @@
 import { bearing as bearingOf, haversine } from "./geo";
-import { estimateSeconds } from "./modes";
+import { estimateSeconds, MODES } from "./modes";
 import type { LngLat, Mode, RouteDoc, Step } from "./types";
 
 export const MIN_TOTAL_S = 20;
@@ -50,12 +50,29 @@ export interface TimelineSample {
   progress: number;
 }
 
+export function safeMode(mode: unknown): Mode {
+  return typeof mode === "string" && Object.hasOwn(MODES, mode) ? (mode as Mode) : "walk";
+}
+
+function okPoint(c: unknown): c is LngLat {
+  return (
+    Array.isArray(c) &&
+    typeof c[0] === "number" &&
+    typeof c[1] === "number" &&
+    Number.isFinite(c[0]) &&
+    Number.isFinite(c[1]) &&
+    Math.abs(c[1]) <= 90
+  );
+}
+
 function legGeometry(seg: RouteDoc["segments"][number]): LngLat[] {
-  if (seg.geometry && seg.geometry.length >= 2) return seg.geometry;
-  return [
-    [seg.from.lng, seg.from.lat],
-    [seg.to.lng, seg.to.lat],
-  ];
+  const g = Array.isArray(seg.geometry) ? seg.geometry.filter(okPoint) : [];
+  if (g.length >= 2) return g;
+  const ends = [
+    [seg.from?.lng, seg.from?.lat],
+    [seg.to?.lng, seg.to?.lat],
+  ].filter(okPoint);
+  return ends.length ? ends : g;
 }
 
 function allocate(weights: number[], budget: number, min: number): number[] {
@@ -94,7 +111,8 @@ export function buildTimeline(doc: RouteDoc, opts: { targetSeconds?: number } = 
   const coords: LngLat[] = [];
   const legStartIdx: number[] = [];
   const legModes: Mode[] = [];
-  for (const seg of doc.segments) {
+  const segments = Array.isArray(doc.segments) ? doc.segments : [];
+  for (const seg of segments) {
     const g = legGeometry(seg);
     let start = coords.length;
     for (let j = 0; j < g.length; j++) {
@@ -107,7 +125,7 @@ export function buildTimeline(doc: RouteDoc, opts: { targetSeconds?: number } = 
       coords.push([c[0], c[1]]);
     }
     legStartIdx.push(start);
-    legModes.push(seg.mode);
+    legModes.push(safeMode(seg.mode));
   }
   const cum: number[] = coords.length ? [0] : [];
   for (let i = 1; i < coords.length; i++) cum.push(cum[i - 1] + haversine(coords[i - 1], coords[i]));
@@ -118,28 +136,37 @@ export function buildTimeline(doc: RouteDoc, opts: { targetSeconds?: number } = 
   }
   if (coords.length === 1) bearings.push(0);
   const totalM = cum[cum.length - 1] ?? 0;
-  const n = doc.segments.length;
+  const n = segments.length;
   const legStartM = legStartIdx.map((idx) => cum[Math.max(0, Math.min(idx, cum.length - 1))] ?? 0);
   const legEndM = legStartM.map((_, i) => (i + 1 < n ? legStartM[i + 1] : totalM));
 
-  const realLeg = doc.segments.map((s, i) => {
-    if (s.durationS > 0) return s.durationS;
-    const len = s.distanceM > 0 ? s.distanceM : legEndM[i] - legStartM[i];
-    return estimateSeconds(s.mode, len);
+  const realLeg = segments.map((s, i) => {
+    if (Number.isFinite(s.durationS) && s.durationS > 0) return s.durationS;
+    const len = Number.isFinite(s.distanceM) && s.distanceM > 0 ? s.distanceM : legEndM[i] - legStartM[i];
+    return estimateSeconds(legModes[i], len);
   });
   let realS = 0;
   for (const r of realLeg) realS += r;
 
   let transferCount = 0;
   for (let i = 1; i < n; i++) if (legModes[i] !== legModes[i - 1]) transferCount++;
-  const transferTotal = transferCount * TRANSFER_S;
+  const weights = realLeg.map((r, i) => (legEndM[i] - legStartM[i] > 0 ? Math.max(r, 0.001) : -1));
+  let moving = 0;
+  for (const w of weights) if (w >= 0) moving++;
 
-  const target =
+  const cap = opts.targetSeconds && opts.targetSeconds > 0 ? opts.targetSeconds : MAX_TOTAL_S;
+  let target =
     opts.targetSeconds && opts.targetSeconds > 0
       ? opts.targetSeconds
       : Math.min(MAX_TOTAL_S, Math.max(MIN_TOTAL_S, realS / COMPRESSION));
-  const weights = realLeg.map((r, i) => (legEndM[i] - legStartM[i] > 0 ? Math.max(r, 0.001) : -1));
-  const legSeconds = allocate(weights, Math.max(0, target - transferTotal), MIN_LEG_S);
+  const floor = MIN_LEG_S * moving + TRANSFER_S * transferCount;
+  let shrink = 1;
+  if (floor > target) {
+    target = Math.min(cap, floor);
+    shrink = target / floor;
+  }
+  const transferS = TRANSFER_S * shrink;
+  const legSeconds = allocate(weights, Math.max(0, target - transferS * transferCount), MIN_LEG_S * shrink);
 
   const pieces: TimelinePiece[] = [];
   let u = 0;
@@ -148,14 +175,14 @@ export function buildTimeline(doc: RouteDoc, opts: { targetSeconds?: number } = 
       pieces.push({
         kind: "transfer",
         u0: u,
-        u1: u + TRANSFER_S,
+        u1: u + transferS,
         m0: legStartM[i],
         m1: legStartM[i],
         segmentIndex: i,
         mode: legModes[i],
         fromMode: legModes[i - 1],
       });
-      u += TRANSFER_S;
+      u += transferS;
     }
     if (legSeconds[i] > 0) {
       pieces.push({

@@ -8,7 +8,9 @@ import type { PropPose } from "./transfer";
 import type { PropRenderer } from "./renderers";
 
 const LAYER_ID = "dp-three";
-const KERB_M = 16;
+const KERB_M = 15.5;
+const REF_ZOOM = 17;
+const DISC_M = { walker: 11, car: 18, matatu: 21, two: 15 };
 const TAU_HEADING = 0.12;
 const VEHICLES: Vehicle[] = ["car", "matatu", "boda", "bike"];
 
@@ -108,24 +110,27 @@ export class ThreeRenderer implements PropRenderer {
     const lx = -Math.cos(b);
     const lz = -Math.sin(b);
 
+    const z = this.map.getZoom();
+    const zm = Math.min(8, Math.max(0.35, Math.pow(2, REF_ZOOM - z)));
+    const kerb = KERB_M * zm;
     for (const v of VEHICLES) {
       const g = this.props.vehicles[v];
       const on = pose.vehicle === v && pose.vehicleAlpha > 0.02;
       g.visible = on;
       if (!on) continue;
-      const off = pose.vehicleOffset * KERB_M;
+      const off = pose.vehicleOffset * kerb;
       g.position.set(this.tmp.x + lx * off, 0, this.tmp.z + lz * off);
       g.rotation.y = -this.heading * toRad;
-      g.scale.setScalar(SCALE[v] * (0.55 + 0.45 * pose.vehicleAlpha));
+      g.scale.setScalar(SCALE[v] * zm * (0.55 + 0.45 * pose.vehicleAlpha));
     }
 
     const w = this.props.walker;
     w.root.visible = pose.walker && pose.walkerAlpha > 0.02;
     if (w.root.visible) {
-      const off = pose.walkerOffset * KERB_M;
+      const off = pose.walkerOffset * kerb;
       w.root.position.set(this.tmp.x + lx * off, 0, this.tmp.z + lz * off);
       w.root.rotation.y = -this.walkHeading * toRad;
-      w.root.scale.setScalar(SCALE.walker * pose.walkerScale * (0.5 + 0.5 * pose.walkerAlpha));
+      w.root.scale.setScalar(SCALE.walker * zm * pose.walkerScale * (0.5 + 0.5 * pose.walkerAlpha));
       if (pose.walkerMoving && playing) this.walkPhase += dt * Math.PI * 2 * 1.9;
       const swing = pose.walkerMoving ? Math.sin(this.walkPhase) : 0;
       w.legA.rotation.x = swing * 0.6;
@@ -137,8 +142,14 @@ export class ThreeRenderer implements PropRenderer {
     const shadow = this.props.shadow;
     const main = pose.vehicle && pose.vehicle !== "walk" ? this.props.vehicles[pose.vehicle] : w.root;
     shadow.position.set(main.position.x, 0.3, main.position.z);
-    const r = pose.vehicle ? (pose.vehicle === "matatu" ? 20 : pose.vehicle === "car" ? 16 : 12) : 7;
-    shadow.scale.setScalar(r);
+    const r = pose.vehicle
+      ? pose.vehicle === "matatu"
+        ? DISC_M.matatu
+        : pose.vehicle === "car"
+          ? DISC_M.car
+          : DISC_M.two
+      : DISC_M.walker;
+    shadow.scale.setScalar(r * zm);
     const mode = pose.vehicle ?? "walk";
     if (mode !== this.discMode) {
       this.discMode = mode;
