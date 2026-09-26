@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, X } from "@phosphor-icons/react";
+import { ArrowRight, BookmarkSimple, X } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useMemo, useSyncExternalStore } from "react";
 import { parseSaved, removeRoute, savedSnapshot, subscribeSaved } from "@/lib/saved";
@@ -13,39 +13,37 @@ export default function SavedRoutes() {
   const list = useMemo(() => parseSaved(raw), [raw]);
   if (!list.length) return null;
   return (
-    <section className="mx-auto w-full max-w-6xl px-5 pb-16 sm:px-8" aria-labelledby="saved-title">
-      <div className="rounded-[12px] border border-line bg-surface p-5 sm:p-6">
-        <h2 id="saved-title" className="text-lg font-semibold tracking-tight">
-          {copy.title}
-        </h2>
-        <p className="mt-1 text-sm text-ink-2">{copy.body}</p>
-        <ul className="mt-4 divide-y divide-line">
-          {list.map((r) => (
-            <li key={r.d} className="flex items-center gap-2 py-2">
-              <Link href={`/r?d=${r.d}`} className="group flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-md">
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{r.title || copy.untitled}</span>
-                  <span className="block text-sm text-ink-3">
-                    {copy.meta(r.distance, date.format(new Date(r.savedAt)))}
-                  </span>
+    <section className="rounded-[18px] border-[1.5px] border-line bg-surface" aria-labelledby="saved-title">
+      <h2 id="saved-title" className="flex items-center gap-2 px-4 pt-4 text-[1.0625rem] font-extrabold sm:px-5">
+        <BookmarkSimple size={20} weight="fill" aria-hidden />
+        {copy.title}
+      </h2>
+      <p className="px-4 pt-1 text-sm text-ink-3 sm:px-5">{copy.body}</p>
+      <ul className="mt-2 divide-y divide-line">
+        {list.map((r) => (
+          <li key={r.d} className="flex items-center gap-1 pr-2">
+            <Link href={`/r?d=${r.d}`} className="group flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-[14px] py-2 pl-4 sm:pl-5">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-bold">{r.title || copy.untitled}</span>
+                <span className="block text-sm text-ink-3">
+                  <span className="num">{r.distance}</span>
+                  {copy.meta("", date.format(new Date(r.savedAt)))}
                 </span>
-                <span className="hidden items-center gap-1 text-sm font-semibold text-accent sm:inline-flex">
-                  {copy.open}
-                  <ArrowRight size={16} weight="bold" aria-hidden />
-                </span>
-              </Link>
-              <button
-                type="button"
-                className="btn btn-ghost btn-icon shrink-0 text-ink-3"
-                aria-label={copy.remove(r.title || copy.untitled)}
-                onClick={() => removeRoute(r.d)}
-              >
-                <X size={18} weight="bold" aria-hidden />
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
+              </span>
+              <span className="sr-only">{copy.open}</span>
+              <ArrowRight size={20} weight="bold" className="shrink-0 text-ink-2 transition-transform group-hover:translate-x-1" aria-hidden />
+            </Link>
+            <button
+              type="button"
+              className="btn btn-ghost btn-icon shrink-0 text-ink-3"
+              aria-label={copy.remove(r.title || copy.untitled)}
+              onClick={() => removeRoute(r.d)}
+            >
+              <X size={18} weight="bold" aria-hidden />
+            </button>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

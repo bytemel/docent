@@ -1,0 +1,2 @@
+export const MARK_PATH = "M10.5 25V17.5C10.5 14.46 12.96 12 16 12H19";
+export const MARK_HEAD = "M18.5 6.8L25.4 12L18.5 17.2Z";

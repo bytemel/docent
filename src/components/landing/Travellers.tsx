@@ -58,8 +58,8 @@ export default function Travellers() {
             <li key={mode} className="grid gap-3 py-5 md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] md:items-center md:gap-10">
               <div className="min-w-0">
                 <p className="flex flex-wrap items-baseline gap-x-3">
-                  <span className="text-lg font-semibold">{info.label}</span>
-                  <span className="font-mono text-xs text-ink-3">{landing.travellers.pace(info.speedKmh)}</span>
+                  <span className="text-lg font-extrabold">{info.label}</span>
+                  <span className="num text-sm text-ink-3">{landing.travellers.pace(info.speedKmh)}</span>
                 </p>
                 <p className="mt-1 text-sm leading-relaxed text-ink-2">{landing.travellers.modes[mode]}</p>
               </div>
