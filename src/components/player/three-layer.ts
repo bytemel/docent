@@ -116,7 +116,7 @@ export class ThreeRenderer implements PropRenderer {
     const lz = -Math.sin(b);
 
     const z = this.map.getZoom();
-    const zm = Math.min(8, Math.max(0.35, Math.pow(2, REF_ZOOM - z))) * this.screen;
+    const zm = Math.min(3, Math.max(0.35, Math.pow(2, REF_ZOOM - z))) * this.screen;
     const kerb = KERB_M * zm;
     for (const v of VEHICLES) {
       const g = this.props.vehicles[v];

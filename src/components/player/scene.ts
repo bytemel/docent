@@ -116,6 +116,7 @@ export class PlayerScene {
     this.map.on("zoomstart", userMove);
     this.map.on("rotatestart", userMove);
     this.map.on("pitchstart", userMove);
+    init.container.querySelector<HTMLElement>(".maplibregl-ctrl-bottom-right")?.style.setProperty("bottom", "0", "important");
     this.map.on("zoom", () => this.updateLabels());
     this.map.on("webglcontextrestored", () => {
       this.map.once("idle", () => {
@@ -144,6 +145,9 @@ export class PlayerScene {
       this.map.once("load", () => {
         if (this.destroyed) return;
         this.loaded = true;
+        if (init.container.clientWidth < 640) {
+          init.container.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
+        }
         this.map.resize();
         this.addRoute();
         this.addMarkers();
@@ -290,7 +294,7 @@ export class PlayerScene {
     this.map.stop();
     this.map.setPadding({ top: 0, bottom: 0, left: 0, right: 0 });
     const c = this.init.container;
-    const pad = Math.max(0, Math.min(48, Math.floor(Math.min(c.clientWidth, c.clientHeight) / 6)));
+    const pad = Math.max(0, Math.min(80, Math.floor(Math.min(c.clientWidth, c.clientHeight) / 6)));
     this.map.fitBounds(this.bounds, {
       padding: pad,
       maxZoom: 16,

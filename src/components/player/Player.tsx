@@ -321,7 +321,7 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
       <div ref={rootRef} className="relative h-full w-full overflow-hidden rounded-[inherit] bg-surface-2">
         {style}
         <div className="absolute inset-0">
-          <div ref={mapRef} className="h-full w-full" />
+          <div ref={mapRef} className="dp-map h-full w-full" />
         </div>
         <button
           type="button"
@@ -379,7 +379,7 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
       {style}
       <div className="relative min-h-[34dvh] flex-1 overflow-hidden bg-surface-2">
         <div className="absolute inset-x-0 bottom-5 top-0 lg:bottom-0">
-          <div ref={mapRef} className="h-full w-full" />
+          <div ref={mapRef} className="dp-map h-full w-full" />
         </div>
         {variant === "page" && !intro ? (
           <button
