@@ -97,8 +97,8 @@ describe("formatDistance", () => {
   });
 });
 
-describe("known geo.ts defect", () => {
-  it.fails("formatDistance just under 1 km should say 1.0 km, not 1000 m", () => {
+describe("formatDistance near 1 km", () => {
+  it("says 1.0 km just under 1 km, not 1000 m", () => {
     expect(formatDistance(998)).toBe("1.0 km");
   });
 });

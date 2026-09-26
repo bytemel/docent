@@ -1,5 +1,5 @@
 import { deflateSync, inflateSync, strFromU8, strToU8 } from "fflate";
-import { lineLength } from "./geo";
+import { lineLength, simplify } from "./geo";
 import { estimateSeconds, MODE_ORDER } from "./modes";
 import { decodePolyline, encodePolyline } from "./polyline";
 import type { Landmark, LandmarkKind, LngLat, Mode, RouteDoc, Segment, Step, StepKind, Walker } from "./types";
@@ -57,6 +57,15 @@ function fromBase64Url(s: string): Uint8Array {
 }
 
 export function encodeDoc(doc: RouteDoc): string {
+  let encoded = encodeWire(doc);
+  for (let tol = 2; encoded.length > LIMITS.encodedChars && tol <= 512; tol *= 2) {
+    const t = tol;
+    encoded = encodeWire({ ...doc, segments: doc.segments.map((s) => ({ ...s, geometry: simplify(s.geometry, t) })) });
+  }
+  return encoded;
+}
+
+function encodeWire(doc: RouteDoc): string {
   const landmarkIndex = new Map(doc.landmarks.map((l, i) => [l.id, i]));
   const created = Date.parse(doc.createdAt);
   const wire: Wire = {

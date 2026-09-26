@@ -1,10 +1,11 @@
-import { lineLength, routeCoords, simplify } from "@/lib/geo";
+import { lineLength, routeCoords, simplify, thin } from "@/lib/geo";
 import { MODES } from "@/lib/modes";
 import { decodePolyline, encodePolyline } from "@/lib/polyline";
 import type { LngLat, Mode, RouteDoc } from "@/lib/types";
 
 export const OG_MAX_POINTS = 60;
 export const OG_MAX_TITLE = 120;
+const OG_PRETHIN_POINTS = 400;
 
 const MODE_LETTER: Record<Mode, string> = { walk: "w", boda: "b", matatu: "m", car: "c", bike: "k" };
 const LETTER_MODE = new Map<string, Mode>(Object.entries(MODE_LETTER).map(([mode, l]) => [l, mode as Mode]));
@@ -24,10 +25,12 @@ export function modeList(doc: RouteDoc): string {
 
 export function ogQuery(doc: RouteDoc): string {
   const legs = doc.segments.filter((s) => s.geometry.length >= 2);
+  const perLeg = Math.max(2, Math.floor(OG_PRETHIN_POINTS / Math.max(1, legs.length)));
+  const coarse = legs.map((s) => thin(s.geometry, perLeg));
   let tol = 5;
-  let parts: LngLat[][] = legs.map((s) => s.geometry);
+  let parts: LngLat[][] = coarse;
   for (let i = 0; i < 24; i++) {
-    parts = legs.map((s) => simplify(s.geometry, tol));
+    parts = coarse.map((g) => simplify(g, tol));
     if (parts.reduce((n, p) => n + p.length, 0) <= OG_MAX_POINTS) break;
     tol *= 1.6;
   }

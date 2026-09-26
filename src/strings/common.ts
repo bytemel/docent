@@ -45,7 +45,7 @@ export const viewer = {
   broken: "This route link is broken or incomplete. Ask the sender to share it again.",
   makeOwn: "Make a route",
   home: "Go to the home page",
-  summary: (distance: string, modes: string) => `A ${distance} route: ${modes}. Watch it play step by step.`,
+  summary: (distance: string, modes: string) => `${distance} route (${modes}). Watch it play step by step.`,
 };
 
 export const notFound = {
@@ -67,6 +67,7 @@ export const steps = {
     stop: "the stop",
   },
   start: (label: string) => `Start at ${label}.`,
+  startHere: "Start here.",
   headToward: (verb: string, target: string) => `${verb} toward ${target}.`,
   headCompass: (verb: string, compass: string) => `${verb} ${compass}.`,
   after: (distance: string, rest: string) => `After ${distance}, ${rest}`,

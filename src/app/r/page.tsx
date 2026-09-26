@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import Link from "next/link";
 import PlayerClient from "@/components/player/PlayerClient";
 import { formatDistance } from "@/lib/geo";
@@ -10,10 +11,12 @@ import { modeList, ogQuery, totalMeters } from "./og-params";
 
 type Props = PageProps<"/r">;
 
+const decodeOnce = cache((raw: string) => decodeDoc(raw));
+
 async function readDoc(searchParams: Props["searchParams"]): Promise<RouteDoc | null> {
   const { d } = await searchParams;
   const raw = Array.isArray(d) ? d[0] : d;
-  return raw ? decodeDoc(raw) : null;
+  return raw ? decodeOnce(raw) : null;
 }
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {

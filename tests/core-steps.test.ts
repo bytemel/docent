@@ -107,7 +107,7 @@ describe("buildSteps", () => {
   it("gives no turn steps on a straight route", () => {
     const steps = buildSteps([seg("walk", STRAIGHT)], []);
     expect(steps.filter((s) => s.kind === "turn")).toHaveLength(0);
-    expect(steps[0].text).toBe("Start at the start. Walk north.");
+    expect(steps[0].text).toBe("Start here. Walk north.");
     expect(steps[steps.length - 1].text).toBe("Arrive at your destination.");
   });
   it("uses a landmark near the turn in the turn text", () => {

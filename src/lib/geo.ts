@@ -94,8 +94,19 @@ export function nearestOnLine(
   return best;
 }
 
-export function simplify(coords: LngLat[], toleranceM: number): LngLat[] {
-  if (coords.length <= 2) return coords.slice();
+export function thin(coords: LngLat[], max: number): LngLat[] {
+  if (coords.length <= max || max < 2) return coords.slice();
+  const out: LngLat[] = [];
+  const step = (coords.length - 1) / (max - 1);
+  for (let i = 0; i < max; i++) out.push(coords[Math.round(i * step)]);
+  return out;
+}
+
+const SIMPLIFY_MAX_INPUT = 3000;
+
+export function simplify(input: LngLat[], toleranceM: number): LngLat[] {
+  const coords = thin(input, SIMPLIFY_MAX_INPUT);
+  if (coords.length <= 2) return coords;
   const keep = new Uint8Array(coords.length);
   keep[0] = 1;
   keep[coords.length - 1] = 1;

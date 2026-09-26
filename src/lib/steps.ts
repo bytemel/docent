@@ -174,7 +174,8 @@ export function buildSteps(segments: Segment[], landmarks: Landmark[]): Step[] {
   };
 
   const first = segs[0];
-  let startText = S.start(labelOf(first.from.label) ?? S.place.start);
+  const startLabel = labelOf(first.from.label);
+  let startText = startLabel ? S.start(startLabel) : S.startHere;
   if (hasTurns(first.mode)) startText += ` ${heading(0, 0)}`;
   drafts.push({ kind: "start", atM: 0, text: startText });
 
