@@ -1,3 +1,4 @@
+import LostRoute from "@/components/landing/LostRoute";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { brand } from "@/strings/common";
@@ -32,14 +33,14 @@ export function MessagePage({
   title: string;
   body: string;
   hint?: string;
-  art: ReactNode;
+  art?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-5 py-6 sm:px-8">
       <Wordmark />
       <div className="grid flex-1 content-center items-center gap-8 py-12 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] md:gap-12">
-        <div className="w-full max-w-[18rem] md:order-2 md:max-w-none">{art}</div>
+        <div className="w-full max-w-[18rem] md:order-2 md:max-w-none">{art ?? <LostRoute kind="broken" className="h-auto w-full" />}</div>
         <div className="min-w-0">
           <h1 className="text-[2rem] font-semibold leading-[1.1] tracking-tight text-balance sm:text-5xl">{title}</h1>
           <p className="mt-5 max-w-[42ch] text-lg leading-relaxed text-ink-2">{body}</p>
