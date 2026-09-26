@@ -24,12 +24,15 @@ import StepPlates, { hearAll } from "./StepPlates";
 import SendStage, { SendActions } from "./SendStage";
 import AskSheet from "./AskSheet";
 import PreviewDialog from "./PreviewDialog";
-import { defaultTitle, waypoints } from "./ops";
+import { defaultTitle, optionStats, waypoints } from "./ops";
+import type { AltLine } from "./mapController";
+import { MODES } from "@/lib/modes";
+import { formatDistance } from "@/lib/geo";
 import { useEditor } from "./useEditor";
 import { STAGES, type Padding, type Stage } from "./types";
 import type { RouteDoc } from "@/lib/types";
 
-const SNAP: Record<Stage, number> = { where: 0.62, route: 0.6, directions: 0.72, send: 0.84 };
+const SNAP: Record<Stage, number> = { where: 0.62, route: 0.42, directions: 0.72, send: 0.84 };
 
 export default function Editor() {
   const e = useEditor();
@@ -47,7 +50,12 @@ export default function Editor() {
     const sheet = sheetRef.current;
     const root = rootRef.current;
     if (!sheet || !root) return;
-    const ro = new ResizeObserver(() => root.style.setProperty("--dc-sheet", `${sheet.getBoundingClientRect().height}px`));
+    const ro = new ResizeObserver(() => {
+      const h = sheet.getBoundingClientRect().height;
+      root.style.setProperty("--dc-sheet", `${h}px`);
+      const desktop = window.matchMedia("(min-width: 1024px)").matches;
+      mapApi.current?.setObscured({ top: 64, right: 0, left: desktop ? 424 : 0, bottom: desktop ? 0 : h });
+    });
     ro.observe(sheet);
     return () => ro.disconnect();
   }, []);
@@ -98,6 +106,37 @@ export default function Editor() {
             : null;
   const lastLabel = waypoints(e.doc.segments).at(-1)?.label;
   const busy = e.doc.segments.some((s) => e.status(s) === "loading");
+  const legOptions = e.legOptions;
+  const alts = useMemo<AltLine[]>(() => {
+    if (stage !== "route" || !editing) return [];
+    const out: AltLine[] = [];
+    for (const seg of e.doc.segments) {
+      const o = legOptions[seg.id];
+      if (!o) continue;
+      const stats = optionStats(seg, o.list, o.selectedId);
+      for (const opt of o.list) {
+        if (opt.id === o.selectedId) continue;
+        const dd = stats[opt.id].distanceM - seg.distanceM;
+        const dt = Math.round((stats[opt.id].durationS - seg.durationS) / 60);
+        const tag =
+          dd < -5
+            ? opt.labels.includes("shortest")
+              ? t.tagShortest
+              : t.tagShorter(formatDistance(-dd))
+            : dt < 0
+              ? t.tagFaster(formatDistance(dd), -dt)
+              : t.tagSlower(formatDistance(Math.max(0, dd)), dt);
+        out.push({
+          segId: seg.id,
+          optId: opt.id,
+          color: MODES[seg.mode].color,
+          geometry: opt.geometry,
+          tag,
+        });
+      }
+    }
+    return out;
+  }, [stage, editing, e.doc.segments, legOptions]);
   const snapKey = e.doc.segments.map((s) => `${s.id}:${s.mode}:${s.distanceM}:${s.geometry.length}`).join("|");
   const url = useMemo(
     () => (editing && stage === "send" ? shareUrl(e.fullDoc, window.location.origin) : ""),
@@ -115,13 +154,24 @@ export default function Editor() {
       .then((shot) => setSnapshot((cur) => (cur?.key === key ? { key, url: shot } : cur)));
   }, [snapKey]);
 
+  const altKey = alts.map((x) => `${x.segId}:${x.optId}`).join("|");
+  const altsRef = useRef(alts);
+  useEffect(() => {
+    altsRef.current = alts;
+  }, [alts]);
+  useEffect(() => {
+    if (!altKey || !mapReady) return;
+    const id = setTimeout(() => mapApi.current?.fit(padding(), altsRef.current.flatMap((x) => x.geometry)), 280);
+    return () => clearTimeout(id);
+  }, [altKey, mapReady, padding]);
+
   function go(next: Stage) {
     a.setTool({ kind: "none" });
     a.setStage(next);
     if (next === "send") {
       if (snapshot?.key !== snapKey && !busy) setTimeout(takeSnapshot, 50);
     } else if (next !== "where" || editing) {
-      setTimeout(() => mapApi.current?.fit(padding()), 260);
+      setTimeout(() => mapApi.current?.fit(padding(), next === "route" ? altsRef.current.flatMap((x) => x.geometry) : []), 260);
     }
   }
 
@@ -218,6 +268,8 @@ export default function Editor() {
         onRetry={a.retry}
         onLabel={a.setLabel}
         onRemoveStop={a.removeStop}
+        options={legOptions}
+        onPickOption={a.pickOption}
       />
     );
   } else if (stage === "directions") {
@@ -287,6 +339,7 @@ export default function Editor() {
         draftLandmark={e.draftLandmark}
         tool={e.tool}
         selectedVia={e.selectedVia}
+        alts={alts}
         handlers={{ ...e.handlers, onStyleState: setMapLoading }}
         onReady={onReady}
       />

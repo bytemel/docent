@@ -340,3 +340,27 @@ export function isRouteDoc(v: unknown): v is RouteDoc {
     (v.title === undefined || str(v.title))
   );
 }
+
+export interface OptionLike {
+  id: string;
+  geometry: LngLat[];
+  distanceM: number;
+  durationS: number;
+  labels: string[];
+}
+
+export function optionStats(
+  seg: Segment,
+  list: OptionLike[],
+  selectedId: string | null,
+): Record<string, { distanceM: number; durationS: number }> {
+  const sel = list.find((o) => o.id === selectedId);
+  const scale = sel && sel.durationS > 0 ? seg.durationS / sel.durationS : 0;
+  const out: Record<string, { distanceM: number; durationS: number }> = {};
+  for (const o of list) {
+    const distanceM = withRoute(seg, o.geometry).distanceM;
+    const durationS = o.id === selectedId ? seg.durationS : scale ? Math.round(o.durationS * scale) : estimateSeconds(seg.mode, distanceM);
+    out[o.id] = { distanceM, durationS };
+  }
+  return out;
+}

@@ -17,6 +17,15 @@ export interface MapHandlers {
   onLineDrag(index: number, p: LngLat): void;
   onDrawn(segId: string, line: LngLat[]): void;
   onStyleState?(loading: boolean): void;
+  onPickOption?(segId: string, optId: string): void;
+}
+
+export interface AltLine {
+  segId: string;
+  optId: string;
+  color: string;
+  geometry: LngLat[];
+  tag: string;
 }
 
 export interface MapView {
@@ -26,9 +35,10 @@ export interface MapView {
   draftLandmark: LngLat | null;
   tool: Tool;
   selectedVia: ViaRef | null;
+  alts: AltLine[];
 }
 
-type MarkerKind = "a" | "b" | "stop" | "via" | "draft";
+type MarkerKind = "a" | "b" | "stop" | "via" | "draft" | "tag";
 
 interface Desired {
   key: string;
@@ -49,6 +59,8 @@ interface Rec {
 const SRC_ROUTE = "dc-route";
 const SRC_LM = "dc-landmarks";
 const SRC_DRAW = "dc-draw";
+const SRC_ALT = "dc-alts";
+const ALT_HIT = "dc-alt-hit";
 const HIT = "dc-route-hit";
 const LONG_PRESS_MS = 350;
 
@@ -67,6 +79,7 @@ const VISUAL: Record<MarkerKind, string> = {
   stop: "size-5 rounded-full border-[5px] border-ink bg-surface shadow-float",
   via: "size-4 rounded-full border-2 border-ink bg-white shadow-float",
   draft: "size-5 rounded-full border-[3px] border-surface bg-accent shadow-float",
+  tag: "whitespace-nowrap rounded-[10px] border border-line bg-surface px-2 py-1 text-[12px] font-bold leading-none text-ink shadow-float",
 };
 
 export class MapController {
@@ -86,6 +99,7 @@ export class MapController {
   private mq: MediaQueryList | null = null;
   private removed = false;
   private base: Padding = { top: 0, right: 0, bottom: 0, left: 0 };
+  private obscured: Padding = { top: 64, right: 0, bottom: 0, left: 0 };
 
   constructor(container: HTMLElement, view: MapView, handlers: MapHandlers) {
     this.view = view;
@@ -114,6 +128,9 @@ export class MapController {
     this.map.on("touchend", this.onTouchEnd);
     this.map.on("touchcancel", this.onTouchCancel);
     this.map.on("mousemove", this.onMouseMove);
+    this.map.on("moveend", () => {
+      if (this.view.alts.length) this.syncMarkers();
+    });
     if (typeof window !== "undefined") {
       this.mq = window.matchMedia("(prefers-color-scheme: dark)");
       this.mq.addEventListener("change", this.onScheme);
@@ -161,8 +178,8 @@ export class MapController {
     };
   }
 
-  fit(padding: Padding, instant = false) {
-    const coords: LngLat[] = [];
+  fit(padding: Padding, instant = false, extra: LngLat[] = []) {
+    const coords: LngLat[] = [...extra];
     for (const s of this.view.segments) coords.push(...(s.geometry.length ? s.geometry : [[s.from.lng, s.from.lat] as LngLat]));
     if (!this.view.segments.length) {
       const { start, end } = this.view.pending;
@@ -341,6 +358,7 @@ export class MapController {
     if (!m.getSource(SRC_ROUTE)) m.addSource(SRC_ROUTE, { type: "geojson", data: EMPTY });
     if (!m.getSource(SRC_LM)) m.addSource(SRC_LM, { type: "geojson", data: EMPTY });
     if (!m.getSource(SRC_DRAW)) m.addSource(SRC_DRAW, { type: "geojson", data: EMPTY });
+    if (!m.getSource(SRC_ALT)) m.addSource(SRC_ALT, { type: "geojson", data: EMPTY });
     const round = { "line-cap": "round", "line-join": "round" } as const;
     if (!m.getLayer("dc-route-casing"))
       m.addLayer({
@@ -350,6 +368,28 @@ export class MapController {
         layout: round,
         paint: { "line-color": casing, "line-width": 10, "line-opacity": 0.95 },
       });
+    if (!m.getLayer("dc-alt-line"))
+      m.addLayer(
+        {
+          id: "dc-alt-line",
+          type: "line",
+          source: SRC_ALT,
+          layout: round,
+          paint: { "line-color": ["get", "color"], "line-width": 5, "line-opacity": 0.5 },
+        },
+        "dc-route-casing",
+      );
+    if (!m.getLayer(ALT_HIT))
+      m.addLayer(
+        {
+          id: ALT_HIT,
+          type: "line",
+          source: SRC_ALT,
+          layout: round,
+          paint: { "line-color": ink, "line-width": 26, "line-opacity": 0.01 },
+        },
+        "dc-route-casing",
+      );
     if (!m.getLayer("dc-route-solid"))
       m.addLayer({
         id: "dc-route-solid",
@@ -417,10 +457,19 @@ export class MapController {
         })),
     };
     (this.map.getSource(SRC_ROUTE) as GeoJSONSource | undefined)?.setData(route);
+    const alts: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: this.view.alts.map((a) => ({
+        type: "Feature",
+        properties: { segId: a.segId, optId: a.optId, color: a.color },
+        geometry: { type: "LineString", coordinates: a.geometry },
+      })),
+    };
+    (this.map.getSource(SRC_ALT) as GeoJSONSource | undefined)?.setData(alts);
     const lms: GeoJSON.FeatureCollection = {
       type: "FeatureCollection",
       features: this.view.landmarks
-        .filter((l) => !l.hidden)
+        .filter((l) => !l.hidden && (!this.view.alts.length || l.source === "host"))
         .map((l) => ({
           type: "Feature",
           properties: { id: l.id, host: l.source === "host" },
@@ -496,11 +545,61 @@ export class MapController {
           onEnd: (p) => this.handlers.onMovePending("end", p),
         });
     }
+    for (const a of v.alts) {
+      const pos = this.tagSpot(a);
+      if (!pos) continue;
+      out.push({
+        key: `alt:${a.segId}:${a.optId}`,
+        kind: "tag",
+        pos,
+        label: a.tag,
+        onClick: () => this.handlers.onPickOption?.(a.segId, a.optId),
+      });
+    }
     if (v.draftLandmark) out.push({ key: "lm:draft", kind: "draft", pos: v.draftLandmark, label: t.hintLandmark });
     return out;
   }
 
+  setObscured(p: Padding) {
+    this.obscured = p;
+    if (this.view.alts.length) this.syncMarkers();
+  }
+
+  private tagSpot(a: AltLine): LngLat | null {
+    const main = this.view.segments.find((sg) => sg.id === a.segId)?.geometry ?? [];
+    if (a.geometry.length < 2) return null;
+    const c = this.map.getContainer();
+    const o = this.obscured;
+    const x0 = o.left + 24;
+    const x1 = c.clientWidth - o.right - 24;
+    const y0 = o.top + 16;
+    const y1 = c.clientHeight - o.bottom - 20;
+    const cum = cumulative(a.geometry);
+    const total = cum[cum.length - 1] ?? 0;
+    const mainCum = cumulative(main);
+    let best: LngLat | null = null;
+    let far = -1;
+    for (let f = 0.1; f <= 0.901; f += 0.04) {
+      const p = pointAt(a.geometry, cum, total * f).pos;
+      const q = this.map.project(p);
+      if (q.x < x0 || q.x > x1 || q.y < y0 || q.y > y1) continue;
+      const d = main.length >= 2 ? nearestOnLine(p, main, mainCum).d : 0;
+      if (d > far + 5) {
+        far = d;
+        best = p;
+      }
+    }
+    return best;
+  }
+
   private makeElement(want: Desired): HTMLElement {
+    if (want.kind === "tag") {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = VISUAL.tag;
+      b.textContent = want.label;
+      return b;
+    }
     const el = document.createElement("div");
     el.className = "grid size-11 cursor-grab place-items-center";
     const inner = document.createElement("div");
@@ -552,6 +651,7 @@ export class MapController {
       rec.want = want;
       const el = rec.marker.getElement();
       el.setAttribute("aria-label", want.label);
+      if (want.kind === "tag" && el.textContent !== want.label) el.textContent = want.label;
       el.setAttribute("title", want.label);
       el.style.pointerEvents = drawing ? "none" : "";
       const inner = el.firstElementChild as HTMLElement | null;
@@ -591,6 +691,16 @@ export class MapController {
     if (this.view.tool.kind === "draw" || this.lineDrag) return;
     const p: LngLat = [e.lngLat.lng, e.lngLat.lat];
     const tool = this.view.tool;
+    if (tool.kind === "none" && this.ready && this.view.alts.length) {
+      const onMain = this.map.queryRenderedFeatures(e.point, { layers: [HIT] }).length > 0;
+      const alt = onMain ? undefined : this.map.queryRenderedFeatures(e.point, { layers: [ALT_HIT] })[0];
+      const segId = alt?.properties?.segId;
+      const optId = alt?.properties?.optId;
+      if (typeof segId === "string" && typeof optId === "string") {
+        this.handlers.onPickOption?.(segId, optId);
+        return;
+      }
+    }
     const hit = this.hitTest(p, tool.kind === "split" ? tool.segId : undefined);
     this.handlers.onTap(p, hit);
   };

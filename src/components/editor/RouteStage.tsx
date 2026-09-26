@@ -17,7 +17,8 @@ import type { Mode, Segment } from "@/lib/types";
 import { MODES, MODE_ORDER } from "@/lib/modes";
 import { formatDistance, formatDuration } from "@/lib/geo";
 import { t } from "@/strings/editor";
-import { waypoints } from "./ops";
+import { optionStats, waypoints } from "./ops";
+import type { RouteOption } from "@/lib/routing";
 import type { Tool } from "./types";
 import { StopField } from "./StopField";
 
@@ -42,6 +43,8 @@ interface Props {
   onRetry(id: string): void;
   onLabel(index: number, label: string): void;
   onRemoveStop(index: number): void;
+  options: Record<string, { list: RouteOption[]; selectedId: string | null }>;
+  onPickOption(segId: string, optId: string): void;
 }
 
 export function Totals({ segments, busy }: { segments: Segment[]; busy: boolean }) {
@@ -95,6 +98,8 @@ export default function RouteStage(p: Props) {
             onTool={p.onTool}
             onRevert={p.onRevert}
             onRetry={p.onRetry}
+            options={p.options[s.id]}
+            onPickOption={p.onPickOption}
           />
           {i < p.segments.length - 1 ? (
             <StopField
@@ -107,6 +112,55 @@ export default function RouteStage(p: Props) {
           ) : null}
         </div>
       ))}
+    </div>
+  );
+}
+
+function OptionRows({
+  seg,
+  options,
+  onPick,
+}: {
+  seg: Segment;
+  options: { list: RouteOption[]; selectedId: string | null };
+  onPick(segId: string, optId: string): void;
+}) {
+  const stats = optionStats(seg, options.list, options.selectedId);
+  return (
+    <div className="border-t border-line px-3 pb-3 pt-2.5">
+      <p className="mb-2 text-xs font-semibold text-ink-3">{t.optionsLabel}</p>
+      <ul className="flex flex-col gap-1.5">
+        {options.list.map((o) => {
+          const on = o.id === options.selectedId;
+          return (
+            <li key={o.id}>
+              <button
+                type="button"
+                aria-pressed={on}
+                aria-label={t.optionPick(formatDistance(stats[o.id].distanceM), formatDuration(stats[o.id].durationS))}
+                onClick={() => onPick(seg.id, o.id)}
+                className="flex min-h-12 w-full items-center gap-3 rounded-[12px] border-[1.5px] border-line px-3 text-left transition-colors hover:border-ink-3 aria-pressed:border-ink aria-pressed:bg-surface-2"
+              >
+                <span
+                  aria-hidden
+                  className={`grid size-5 shrink-0 place-items-center rounded-full border-2 ${on ? "border-ink bg-ink" : "border-line"}`}
+                >
+                  {on ? <span className="size-2 rounded-full bg-bg" /> : null}
+                </span>
+                <span className="num text-[15px] font-bold text-ink">{formatDistance(stats[o.id].distanceM)}</span>
+                <span className="num text-sm text-ink-2">{formatDuration(stats[o.id].durationS)}</span>
+                <span className="ml-auto flex shrink-0 gap-1">
+                  {o.labels.map((l) => (
+                    <span key={l} className="rounded-[8px] bg-accent px-1.5 py-1 text-[11px] font-bold leading-none text-accent-ink">
+                      {t.labels[l]}
+                    </span>
+                  ))}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
@@ -149,6 +203,8 @@ function LegCard({
   onTool,
   onRevert,
   onRetry,
+  options,
+  onPickOption,
 }: {
   seg: Segment;
   n: number;
@@ -161,6 +217,8 @@ function LegCard({
   onTool(tool: Tool): void;
   onRevert(id: string): void;
   onRetry(id: string): void;
+  options?: { list: RouteOption[]; selectedId: string | null };
+  onPickOption(segId: string, optId: string): void;
 }) {
   const active = (kind: Tool["kind"]) => tool.kind === kind && "segId" in tool && tool.segId === seg.id;
   const toggle = (kind: "via" | "draw" | "split") =>
@@ -221,9 +279,8 @@ function LegCard({
           </button>
         </div>
       ) : null}
-      {seg.drawn ? (
-        <p className="px-3 pb-2 text-sm text-ink-3">{t.drawnNote}</p>
-      ) : null}
+      {seg.drawn ? <p className="px-3 pb-2 text-sm text-ink-3">{t.drawnNote}</p> : null}
+      {options && status === "ok" ? <OptionRows seg={seg} options={options} onPick={onPickOption} /> : null}
       <ul aria-label={t.toolsLabel} className="divide-y divide-line border-t border-line">
         {!seg.drawn ? <ToolRow icon={PlusIcon} label={t.turnShort} pressed={active("via")} onClick={() => toggle("via")} /> : null}
         {seg.drawn ? (
