@@ -16,11 +16,12 @@ import {
   addVia,
   defaultTitle,
   emptyDoc,
-  isRouteDoc,
   legPoints,
   mergeAtStop,
   mergeLandmarks,
   mergeSteps,
+  MAX_VIAS,
+  storedSteps,
   moveVia,
   moveWaypoint,
   nameWaypoint,
@@ -37,18 +38,7 @@ import {
 } from "./ops";
 import type { LegStatus } from "./RouteTab";
 import type { Pending, RouteHit, Tab, Tool, ViaRef } from "./types";
-
-type Phase = "resume" | "setup" | "edit";
-
-function normalise(d: RouteDoc): RouteDoc {
-  return {
-    ...emptyDoc(),
-    ...d,
-    title: typeof d.title === "string" ? d.title : "",
-    arrival: { note: d.arrival?.note ?? "" },
-    walker: d.walker ?? "neutral",
-  };
-}
+import { initialState, type InitState, type Phase } from "./init";
 
 function routedKeys(doc: RouteDoc): Record<string, string> {
   const out: Record<string, string> = {};
@@ -56,16 +46,10 @@ function routedKeys(doc: RouteDoc): Record<string, string> {
   return out;
 }
 
-function initial(): { doc: RouteDoc; phase: Phase; draft: RouteDoc | null } {
-  if (typeof window === "undefined") return { doc: emptyDoc(), phase: "setup", draft: null };
-  const d = new URLSearchParams(window.location.search).get("d");
-  if (d) {
-    const doc = decodeDoc(d);
-    if (isRouteDoc(doc)) return { doc: normalise(doc), phase: "edit", draft: null };
-  }
-  const draft = loadDraft();
-  if (draft && isRouteDoc(draft)) return { doc: emptyDoc(), phase: "resume", draft: normalise(draft) };
-  return { doc: emptyDoc(), phase: "setup", draft: null };
+function initial(): InitState {
+  if (typeof window === "undefined")
+    return { doc: emptyDoc(), phase: "setup", draft: null, saveArmed: true, badLink: false };
+  return initialState(window.location.search, loadDraft, decodeDoc);
 }
 
 const omit = (m: Record<string, string>, id: string) => {
@@ -87,7 +71,8 @@ export function useEditor() {
   const [selectedVia, setSelectedVia] = useState<ViaRef | null>(null);
   const [draftLandmark, setDraftLandmark] = useState<LngLat | null>(null);
   const [focusStop, setFocusStop] = useState<number | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(init.badLink ? t.badLink : null);
+  const [saveArmed, setSaveArmed] = useState(init.saveArmed);
   const [lmLoading, setLmLoading] = useState(false);
   const [fitTick, setFitTick] = useState(init.phase === "edit" ? 1 : 0);
   const inflight = useRef(new Map<string, { key: string; ctrl: AbortController }>());
@@ -97,6 +82,7 @@ export function useEditor() {
 
   const commit = useCallback((fn: (d: RouteDoc) => RouteDoc, key?: string) => {
     setHist((h) => pushHistory(h, fn(h.present), { key }));
+    setSaveArmed(true);
   }, []);
 
   const clearTransient = () => {
@@ -236,9 +222,14 @@ export function useEditor() {
     [doc, steps, lastLabel],
   );
 
+  const draftDoc = useMemo<RouteDoc>(
+    () => ({ ...fullDoc, steps: storedSteps(doc.steps, autoSteps, steps) }),
+    [fullDoc, doc.steps, autoSteps, steps],
+  );
+
   useEffect(() => {
-    if (phase === "edit" && fullDoc.segments.length) saveDraft(fullDoc);
-  }, [fullDoc, phase]);
+    if (phase === "edit" && saveArmed && draftDoc.segments.length) saveDraft(draftDoc);
+  }, [draftDoc, phase, saveArmed]);
 
   useEffect(() => {
     const flush = () => flushDraft();
@@ -275,6 +266,7 @@ export function useEditor() {
       if (!(e.ctrlKey || e.metaKey)) return;
       const el = e.target as HTMLElement | null;
       if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
+      if (document.querySelector('[aria-modal="true"]')) return;
       const k = e.key.toLowerCase();
       if (k === "z" && !e.shiftKey) {
         e.preventDefault();
@@ -321,6 +313,7 @@ export function useEditor() {
     setRouted({});
     setErrors({});
     setPhase("edit");
+    setSaveArmed(true);
     setTab("route");
     fitAfterRoute.current = true;
     setFitTick((n) => n + 1);
@@ -343,6 +336,12 @@ export function useEditor() {
       }
       if (phase !== "edit") return;
       if (tool.kind === "via") {
+        const seg = doc.segments.find((x) => x.id === tool.segId);
+        if (seg && seg.vias.length >= MAX_VIAS) {
+          setNotice(t.tooManyVias);
+          setTool({ kind: "none" });
+          return;
+        }
         commit((d) => ({ ...d, segments: addVia(d.segments, tool.segId, p) }));
         setTool({ kind: "none" });
       } else if (tool.kind === "split") {
@@ -386,6 +385,10 @@ export function useEditor() {
     onLineDrag(index: number, p: LngLat) {
       const seg = doc.segments[index];
       if (!seg || seg.drawn) return;
+      if (seg.vias.length >= MAX_VIAS) {
+        setNotice(t.tooManyVias);
+        return;
+      }
       commit((d) => ({ ...d, segments: addVia(d.segments, seg.id, p) }));
     },
     onDrawn(segId: string, line: LngLat[]) {
@@ -400,11 +403,13 @@ export function useEditor() {
       if (!init.draft) return;
       setHist(createHistory(init.draft));
       setRouted(routedKeys(init.draft));
+      setSaveArmed(true);
       setPhase("edit");
       setFitTick((n) => n + 1);
     },
     startNew() {
       clearDraft();
+      setSaveArmed(true);
       setHist(createHistory(emptyDoc()));
       setPending({ start: null, end: null });
       setPhase("setup");
@@ -472,14 +477,13 @@ export function useEditor() {
     },
     cancelDraftLandmark: () => setDraftLandmark(null),
     editStep(id: string, text: string) {
-      commit((d) => ({ ...d, steps: steps.map((s) => (s.id === id ? { ...s, text, edited: true } : s)) }), `step:${id}`);
+      const display = steps.map((s) => (s.id === id ? { ...s, text, edited: true } : s));
+      commit((d) => ({ ...d, steps: storedSteps(d.steps, autoSteps, display) }), `step:${id}`);
     },
     resetStep(id: string) {
       const auto = autoSteps.find((s) => s.id === id);
-      commit((d) => ({
-        ...d,
-        steps: steps.map((s) => (s.id === id ? (auto ?? { ...s, edited: false }) : s)),
-      }));
+      const display = steps.map((s) => (s.id === id ? (auto ?? { ...s, edited: false }) : s));
+      commit((d) => ({ ...d, steps: storedSteps(d.steps, autoSteps, display) }));
     },
     setTitle(title: string) {
       commit((d) => ({ ...d, title }), "title");

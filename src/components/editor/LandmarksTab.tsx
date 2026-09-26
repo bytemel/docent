@@ -83,31 +83,31 @@ export default function LandmarksTab(p: Props) {
             {p.loading ? t.landmarksLoading : t.landmarksEmpty}
           </p>
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col gap-3">
             {map.map((l) => (
-              <li key={l.id} className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="btn btn-icon btn-ghost shrink-0"
-                  aria-pressed={!l.hidden}
-                  aria-label={l.hidden ? t.show : t.hide}
-                  title={l.hidden ? t.show : t.hide}
-                  onClick={() => p.onUpdate(l.id, { hidden: !l.hidden })}
-                >
-                  {l.hidden ? <EyeSlashIcon size={20} aria-hidden /> : <EyeIcon size={20} aria-hidden />}
-                </button>
-                <label htmlFor={`lm-${l.id}`} className="sr-only">
-                  {t.landmarkLabel}
+              <li key={l.id} className="flex flex-col gap-1.5">
+                <label htmlFor={`lm-${l.id}`} className="text-sm font-medium text-ink-2">
+                  {t.kinds[l.kind] ?? t.kinds.other}
+                  <span className="sr-only">, {t.landmarkLabel}</span>
                 </label>
-                <input
-                  id={`lm-${l.id}`}
-                  className={`field min-w-0 flex-1 ${l.hidden ? "text-ink-3 line-through" : ""}`}
-                  value={l.label}
-                  onChange={(e) => p.onUpdate(l.id, { label: e.target.value }, `lm:${l.id}:label`)}
-                />
-                <span className="hidden w-16 shrink-0 truncate text-xs text-ink-3 sm:block">
-                  {t.kinds[l.kind] ?? ""}
-                </span>
+                <div className="flex items-center gap-2">
+                  <input
+                    id={`lm-${l.id}`}
+                    className={`field min-w-0 flex-1 ${l.hidden ? "text-ink-3 line-through" : ""}`}
+                    value={l.label}
+                    onChange={(e) => p.onUpdate(l.id, { label: e.target.value }, `lm:${l.id}:label`)}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-icon btn-ghost shrink-0"
+                    aria-pressed={!l.hidden}
+                    aria-label={l.hidden ? t.show : t.hide}
+                    title={l.hidden ? t.show : t.hide}
+                    onClick={() => p.onUpdate(l.id, { hidden: !l.hidden })}
+                  >
+                    {l.hidden ? <EyeSlashIcon size={20} aria-hidden /> : <EyeIcon size={20} aria-hidden />}
+                  </button>
+                </div>
               </li>
             ))}
           </ul>

@@ -31,7 +31,7 @@ export function orsRequest(profile: Profile, points: LngLat[], key: string): { u
     init: {
       method: "POST",
       headers: { Authorization: key, "Content-Type": "application/json" },
-      body: JSON.stringify({ coordinates: points }),
+      body: JSON.stringify({ coordinates: points, radiuses: points.map(() => -1) }),
     },
   };
 }

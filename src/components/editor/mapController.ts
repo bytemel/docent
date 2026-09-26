@@ -110,7 +110,7 @@ export class MapController {
     this.map.on("touchstart", HIT, this.onLineTouchStart);
     this.map.on("touchmove", this.onTouchMove);
     this.map.on("touchend", this.onTouchEnd);
-    this.map.on("touchcancel", this.onTouchEnd);
+    this.map.on("touchcancel", this.onTouchCancel);
     this.map.on("mousemove", this.onMouseMove);
     if (typeof window !== "undefined") {
       this.mq = window.matchMedia("(prefers-color-scheme: dark)");
@@ -533,6 +533,15 @@ export class MapController {
       this.map.dragPan.enable();
       if (g) this.handlers.onLineDrag(d.index, g);
     }
+  };
+
+  private onTouchCancel = () => {
+    const d = this.lineDrag;
+    if (!d || !d.touch) return;
+    this.cancelPress();
+    this.lineDrag = null;
+    this.hideGhost();
+    if (d.moved) this.map.dragPan.enable();
   };
 
   private cancelPress() {

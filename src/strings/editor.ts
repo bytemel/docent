@@ -72,6 +72,10 @@ export const t = {
   removeVia: "Remove",
   done: "Done",
   splitMissed: "Tap closer to the route line.",
+  tooManyVias: "This leg has as many turn points as it can take. Add a stop with Change transport here, or draw it yourself.",
+  badLink: "We could not open that route link. It may be cut short. Ask for the link again.",
+  brokenTitle: "Something went wrong with this route",
+  brokenBody: "The saved route could not be opened. You can start a new one.",
 
   landmarksIntro: "Places near the route help people find their way. Hide any that do not help.",
   landmarksEmpty: "No landmarks found near the route yet.",
@@ -123,6 +127,7 @@ export const t = {
   longLink: "This link is long because the whole route is inside it. It still works.",
   needRoute: "Set the start and the destination first.",
   previewClose: "Close preview",
+  previewLabel: "Route preview",
 
   markerStart: "Start point. Drag to move.",
   markerEnd: "Destination. Drag to move.",

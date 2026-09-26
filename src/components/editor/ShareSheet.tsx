@@ -56,7 +56,11 @@ export default function ShareSheet({ url, title, onClose }: Props) {
   const wa = `https://wa.me/?text=${encodeURIComponent(`${title}\n${url}`)}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 sm:items-center" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+      style={{ background: "rgb(0 0 0 / 0.5)" }}
+      onClick={onClose}
+    >
       <div
         role="dialog"
         aria-modal="true"

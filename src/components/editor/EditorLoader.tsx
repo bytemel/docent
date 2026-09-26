@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { t } from "@/strings/editor";
+import EditorBoundary from "./EditorBoundary";
 
 const Editor = dynamic(() => import("./Editor"), {
   ssr: false,
@@ -15,5 +16,9 @@ const Editor = dynamic(() => import("./Editor"), {
 });
 
 export default function EditorLoader() {
-  return <Editor />;
+  return (
+    <EditorBoundary>
+      <Editor />
+    </EditorBoundary>
+  );
 }

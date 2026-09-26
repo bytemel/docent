@@ -9,7 +9,6 @@ import {
   PlayIcon,
   ShareNetworkIcon,
 } from "@phosphor-icons/react";
-import PlayerClient from "@/components/player/PlayerClient";
 import { shareUrl } from "@/lib/share";
 import { NAIROBI } from "@/lib/map";
 import { t } from "@/strings/editor";
@@ -21,6 +20,7 @@ import LandmarksTab from "./LandmarksTab";
 import StepsTab from "./StepsTab";
 import DetailsTab from "./DetailsTab";
 import ShareSheet from "./ShareSheet";
+import PreviewDialog from "./PreviewDialog";
 import { defaultTitle, waypoints } from "./ops";
 import { useEditor } from "./useEditor";
 import type { Padding, Tab } from "./types";
@@ -53,15 +53,6 @@ export default function Editor() {
   }, [fitTick, mapReady, padding]);
 
   const getCenter = useCallback((): [number, number] => mapApi.current?.getCenter() ?? NAIROBI, []);
-
-  useEffect(() => {
-    if (!preview) return;
-    const onKey = (ev: KeyboardEvent) => {
-      if (ev.key === "Escape") setPreview(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [preview]);
 
   const closeShare = useCallback(() => setShare(null), []);
   const closePreview = useCallback(() => setPreview(false), []);
@@ -284,9 +275,7 @@ export default function Editor() {
 
       {share ? <ShareSheet url={share} title={e.fullDoc.title} onClose={closeShare} /> : null}
       {preview ? (
-        <div className="fixed inset-0 z-50 bg-bg">
-          <PlayerClient doc={e.fullDoc} variant="preview" autoplay onClose={closePreview} />
-        </div>
+        <PreviewDialog doc={e.fullDoc} onClose={closePreview} />
       ) : null}
     </div>
   );

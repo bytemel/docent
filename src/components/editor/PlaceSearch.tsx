@@ -19,6 +19,7 @@ export default function PlaceSearch({ heading, label, getCenter, onPick, autoFoc
   const id = useId();
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Place[]>([]);
+  const [resultsFor, setResultsFor] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [locating, setLocating] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
@@ -37,6 +38,7 @@ export default function PlaceSearch({ heading, label, getCenter, onPick, autoFoc
       searchPlaces(query, centerRef.current(), ctrl.signal)
         .then((r) => {
           setResults(r);
+          setResultsFor(query);
           setStatus("done");
         })
         .catch(() => {
@@ -103,7 +105,9 @@ export default function PlaceSearch({ heading, label, getCenter, onPick, autoFoc
             value={q}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && results[0]) onPick(results[0]);
+              if (e.key !== "Enter") return;
+              e.preventDefault();
+              if (status === "done" && resultsFor === q.trim() && results[0]) onPick(results[0]);
             }}
             aria-controls={`${id}-list`}
           />

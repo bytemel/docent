@@ -3,6 +3,8 @@ import { MODES, estimateSeconds } from "@/lib/modes";
 import { t } from "@/strings/editor";
 import { cumulative, haversine, lineLength, nearestOnLine, pointAt, uid } from "@/lib/geo";
 
+export const MAX_VIAS = 23;
+
 const r5 = (n: number) => Math.round(n * 1e5) / 1e5;
 const ll = (w: Waypoint): LngLat => [w.lng, w.lat];
 
@@ -195,24 +197,58 @@ export function revertDrawn(segments: Segment[], id: string): Segment[] {
   return segments.map((s) => (s.id === id ? straight({ ...s, drawn: false }) : s));
 }
 
+export const STEP_MATCH_M = 50;
+
+function matchEdits(old: Step[], fresh: Step[]): { steps: Step[]; unmatched: Step[] } {
+  const steps = fresh.slice();
+  const taken = new Set<number>();
+  const unmatched: Step[] = [];
+  const edits = old.filter((s) => s && s.edited).sort((a, b) => a.atM - b.atM);
+  for (const e of edits) {
+    let best = -1;
+    let bestD = Infinity;
+    steps.forEach((f, i) => {
+      if (taken.has(i) || f.kind !== e.kind) return;
+      if (e.landmarkId && f.landmarkId !== e.landmarkId) return;
+      const single = e.kind === "start" || e.kind === "arrive";
+      const d = f.id === e.id || single ? -1 : Math.abs(f.atM - e.atM);
+      if (d <= STEP_MATCH_M && d < bestD) {
+        best = i;
+        bestD = d;
+      }
+    });
+    if (best < 0) {
+      unmatched.push(e);
+      continue;
+    }
+    taken.add(best);
+    steps[best] = { ...steps[best], text: e.text, edited: true };
+  }
+  return { steps, unmatched };
+}
+
 export function mergeSteps(old: Step[], fresh: Step[]): Step[] {
-  const edited = new Map(old.filter((s) => s.edited).map((s) => [s.id, s]));
-  return fresh.map((s) => {
-    const e = edited.get(s.id);
-    return e ? { ...s, text: e.text, edited: true } : s;
-  });
+  return matchEdits(old, fresh).steps;
+}
+
+export function storedSteps(old: Step[], fresh: Step[], display: Step[]): Step[] {
+  const { unmatched } = matchEdits(old, fresh);
+  return [...display, ...unmatched];
 }
 
 export function mergeLandmarks(old: Landmark[], fresh: Landmark[]): Landmark[] {
   const prev = new Map(old.filter((l) => l.source === "map").map((l) => [l.id, l]));
   const host = old.filter((l) => l.source === "host");
+  const seen = new Set<string>();
   const map = fresh
     .filter((l) => l.source !== "host")
     .map((l) => {
+      seen.add(l.id);
       const o = prev.get(l.id);
       return o ? { ...l, label: o.label, hidden: o.hidden } : l;
     });
-  return [...map, ...host];
+  const keptHidden = old.filter((l) => l.source === "map" && l.hidden && !seen.has(l.id));
+  return [...map, ...keptHidden, ...host];
 }
 
 export function defaultTitle(label?: string): string {
@@ -244,15 +280,63 @@ export function nameWaypoint(doc: RouteDoc, lng: number, lat: number, label: str
   return { ...doc, segments, title };
 }
 
-export function isRouteDoc(v: unknown): v is RouteDoc {
-  const d = v as RouteDoc;
+const num = (n: unknown) => typeof n === "number" && Number.isFinite(n);
+const str = (v: unknown) => typeof v === "string";
+const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+
+function isPair(p: unknown): boolean {
+  return Array.isArray(p) && p.length >= 2 && num(p[0]) && num(p[1]) && Math.abs(p[0]) <= 180 && Math.abs(p[1]) <= 90;
+}
+
+function isWaypoint(w: unknown): boolean {
+  return isObj(w) && num(w.lng) && num(w.lat) && Math.abs(w.lng as number) <= 180 && Math.abs(w.lat as number) <= 90 && (w.label === undefined || str(w.label));
+}
+
+function isSegment(s: unknown): boolean {
   return (
-    !!d &&
-    d.v === 1 &&
-    Array.isArray(d.segments) &&
-    d.segments.length > 0 &&
-    Array.isArray(d.landmarks) &&
-    Array.isArray(d.steps) &&
-    d.segments.every((s) => s && s.from && s.to && Array.isArray(s.geometry) && Array.isArray(s.vias) && !!MODES[s.mode])
+    isObj(s) &&
+    str(s.id) &&
+    str(s.mode) &&
+    Object.hasOwn(MODES, s.mode as string) &&
+    isWaypoint(s.from) &&
+    isWaypoint(s.to) &&
+    Array.isArray(s.vias) &&
+    s.vias.every(isPair) &&
+    Array.isArray(s.geometry) &&
+    s.geometry.every(isPair) &&
+    typeof s.drawn === "boolean" &&
+    num(s.distanceM) &&
+    num(s.durationS)
+  );
+}
+
+function isLandmark(l: unknown): boolean {
+  return (
+    isObj(l) &&
+    str(l.id) &&
+    num(l.lng) &&
+    num(l.lat) &&
+    str(l.label) &&
+    str(l.kind) &&
+    (l.source === "map" || l.source === "host") &&
+    (l.note === undefined || str(l.note))
+  );
+}
+
+function isStep(s: unknown): boolean {
+  return isObj(s) && str(s.id) && str(s.kind) && str(s.text) && num(s.atM);
+}
+
+export function isRouteDoc(v: unknown): v is RouteDoc {
+  if (!isObj(v) || v.v !== 1) return false;
+  return (
+    Array.isArray(v.segments) &&
+    v.segments.length > 0 &&
+    v.segments.every(isSegment) &&
+    Array.isArray(v.landmarks) &&
+    v.landmarks.every(isLandmark) &&
+    Array.isArray(v.steps) &&
+    v.steps.every(isStep) &&
+    (v.title === undefined || str(v.title))
   );
 }
