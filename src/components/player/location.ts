@@ -1,16 +1,10 @@
 import { Marker, type GeoJSONSource, type Map as MLMap } from "maplibre-gl";
 import { haversine } from "@/lib/geo";
-import type { Timeline } from "@/lib/timeline";
+import { lngLatAt, type Timeline } from "@/lib/timeline";
 import type { LngLat } from "@/lib/types";
-import {
-  acceptFix,
-  createNearest,
-  createTrack,
-  nearestInto,
-  SNAP_MIN_M,
-  stepAtMeters,
-  trackAccuracy,
-} from "./track";
+import type { LiveFix } from "@/lib/live";
+import { createLiveFilter, FILTER, progressAlong, snapToRoute, type RouteLeg, type Snap } from "@/lib/liveFilter";
+import { stepAtMeters } from "./track";
 
 export type LocState = "off" | "waiting" | "weak" | "on" | "denied" | "unavailable";
 export type GuideState = "idle" | "loading" | "shown" | "failed";
@@ -35,14 +29,7 @@ export const LOC_OFF: LocStatus = {
   guide: "idle",
 };
 
-export interface FixOut {
-  lng: number;
-  lat: number;
-  acc: number;
-  heading: number | null;
-  speed: number | null;
-  t: number;
-}
+export type FixOut = LiveFix;
 
 export interface LocationHooks {
   onStatus: (s: LocStatus) => void;
@@ -73,8 +60,12 @@ export class LiveLocation {
   private hooks: LocationHooks;
   private watchId: number | null = null;
   private wanted = false;
-  private track = createTrack();
-  private near = createNearest();
+  private filter = createLiveFilter();
+  private has = false;
+  private weak = 0;
+  private acc = 0;
+  private snap: Snap = { pos: [0, 0], atM: 0, offRouteM: Infinity, snapped: false };
+  private legs: RouteLeg[];
   private shown: LngLat = [0, 0];
   private heading: number | null = null;
   private lastDraw = 0;
@@ -108,6 +99,7 @@ export class LiveLocation {
     this.tl = tl;
     this.stepsM = stepsM;
     this.hooks = hooks;
+    this.legs = tl.legModes.map((mode, i) => ({ mode, startM: tl.legStartM[i], endM: tl.legEndM[i] }));
     this.arrowEl = document.createElement("div");
     this.arrowEl.innerHTML =
       '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 1 L18 12 L12 9.5 L6 12 Z" style="fill:var(--accent);stroke:var(--surface);stroke-width:1.5"/></svg>';
@@ -145,7 +137,9 @@ export class LiveLocation {
     this.guideAbort?.abort();
     this.guideOn = false;
     this.follow = false;
-    this.track = createTrack();
+    this.filter.reset();
+    this.has = false;
+    this.weak = 0;
     this.offSince = 0;
     this.removeLayers();
     this.emit({ ...LOC_OFF });
@@ -153,7 +147,7 @@ export class LiveLocation {
 
   setFollow(on: boolean) {
     this.follow = on;
-    if (on && this.track.has) this.map.easeTo({ center: this.shown, zoom: Math.max(this.map.getZoom(), 16), duration: 500 });
+    if (on && this.has) this.map.easeTo({ center: this.shown, zoom: Math.max(this.map.getZoom(), 16), duration: 500 });
   }
 
   guide() {
@@ -171,7 +165,7 @@ export class LiveLocation {
           this.wanted = false;
           this.clearWatch();
           this.emit({ state: "denied" });
-        } else if (!this.track.has) {
+        } else if (!this.has) {
           this.emit({ state: "unavailable" });
         }
       },
@@ -188,27 +182,29 @@ export class LiveLocation {
 
   private onPosition(p: GeolocationPosition) {
     const c = p.coords;
-    const tr = this.track;
-    const r = acceptFix(tr, c.longitude, c.latitude, c.accuracy, p.timestamp || Date.now());
-    if (r === "weak") {
-      if (!tr.has && tr.weak >= WEAK_AFTER) this.emit({ state: "weak" });
+    const raw: LiveFix = {
+      lng: c.longitude,
+      lat: c.latitude,
+      acc: c.accuracy,
+      heading: c.heading !== null && Number.isFinite(c.heading) ? c.heading : null,
+      speed: c.speed !== null && Number.isFinite(c.speed) ? c.speed : null,
+      t: p.timestamp || Date.now(),
+    };
+    if (!(raw.acc <= FILTER.maxAccM)) {
+      this.weak++;
+      if (!this.has && this.weak >= WEAK_AFTER) this.emit({ state: "weak" });
       return;
     }
-    if (r === "jump") return;
-    this.heading = c.heading !== null && Number.isFinite(c.heading) && (c.speed ?? tr.speed) > 0.5 ? c.heading : null;
-    const acc = trackAccuracy(tr);
-    nearestInto(this.tl, tr.lng, tr.lat, this.near);
-    const snap = this.near.d <= Math.max(SNAP_MIN_M, acc);
-    this.shown[0] = snap ? this.near.lng : tr.lng;
-    this.shown[1] = snap ? this.near.lat : tr.lat;
-    const f = this.fix;
-    f.lng = this.shown[0];
-    f.lat = this.shown[1];
-    f.acc = Math.round(acc * 10) / 10;
-    f.heading = this.heading;
-    f.speed = Number.isFinite(c.speed) && c.speed !== null ? c.speed : tr.speed;
-    f.t = tr.t;
-    this.hooks.onFix(f);
+    this.weak = 0;
+    const fix = this.filter.push(raw);
+    if (!fix) return;
+    this.has = true;
+    this.acc = fix.acc;
+    this.heading = fix.heading !== null && (fix.speed ?? 0) > 0.5 ? fix.heading : null;
+    this.snap = snapToRoute(fix, this.tl.coords, this.tl.cum);
+    this.shown[0] = this.snap.pos[0];
+    this.shown[1] = this.snap.pos[1];
+    this.hooks.onFix({ ...fix, lng: this.shown[0], lat: this.shown[1], acc: Math.round(fix.acc * 10) / 10 });
     const wait = MIN_UPDATE_MS - (performance.now() - this.lastDraw);
     if (wait <= 0) this.draw();
     else if (!this.pending) {
@@ -268,15 +264,13 @@ export class LiveLocation {
   }
 
   private draw() {
-    const tr = this.track;
-    if (!this.wanted || !tr.has) return;
+    if (!this.wanted || !this.has) return;
     this.lastDraw = performance.now();
     this.addLayers();
     this.point.geometry.coordinates[0] = this.shown[0];
     this.point.geometry.coordinates[1] = this.shown[1];
     (this.map.getSource(SRC) as GeoJSONSource | undefined)?.setData(this.point);
-    const acc = trackAccuracy(tr);
-    const r0 = acc / ((EARTH * Math.cos((this.shown[1] * Math.PI) / 180)) / 512);
+    const r0 = this.acc / ((EARTH * Math.cos((this.shown[1] * Math.PI) / 180)) / 512);
     this.map.setPaintProperty("dp-me-acc", "circle-radius", ["interpolate", ["exponential", 2], ["zoom"], 0, r0, 22, r0 * 4194304]);
     if (this.heading !== null) {
       if (!this.arrow) this.arrow = new Marker({ element: this.arrowEl, rotationAlignment: "map", pitchAlignment: "map" });
@@ -288,26 +282,28 @@ export class LiveLocation {
     if (this.follow) this.map.easeTo({ center: this.shown, duration: 400 });
 
     const tl = this.tl;
-    const near = this.near;
+    const off = this.snap.offRouteM;
+    const onLine = off <= OFF_ROUTE_M;
     const last = tl.coords[tl.coords.length - 1];
-    const toGo = last ? haversine(this.shown, last) : null;
+    const straight = last ? haversine(this.shown, last) : null;
+    const toGo = straight === null ? null : onLine ? progressAlong(this.snap.atM, this.legs).leftM : straight;
     const hasLine = tl.coords.length > 0;
     const now = this.lastDraw;
     let offRoute = false;
-    if (hasLine && near.d > OFF_ROUTE_M) {
+    if (hasLine && !onLine) {
       if (!this.offSince) this.offSince = now;
       offRoute = now - this.offSince >= OFF_ROUTE_HOLD_MS;
     } else this.offSince = 0;
-    const arrived = toGo !== null && (toGo <= ARRIVE_M || (this.status.arrived && toGo <= OFF_ROUTE_M));
+    const arrived = straight !== null && (straight <= ARRIVE_M || (this.status.arrived && straight <= OFF_ROUTE_M));
     this.emit({
       state: "on",
       toGoM: toGo === null ? null : Math.round(toGo / 10) * 10,
-      offRouteM: hasLine ? Math.round(near.d / 10) * 10 : null,
+      offRouteM: hasLine && Number.isFinite(off) ? Math.round(off / 10) * 10 : null,
       offRoute,
       arrived,
-      stepIndex: arrived ? this.stepsM.length - 1 : near.d <= OFF_ROUTE_M ? stepAtMeters(this.stepsM, near.atM) : this.status.stepIndex,
+      stepIndex: arrived ? this.stepsM.length - 1 : onLine ? stepAtMeters(this.stepsM, this.snap.atM) : this.status.stepIndex,
     });
-    if (near.d <= OFF_ROUTE_M && this.guideOn) {
+    if (onLine && this.guideOn) {
       this.guideOn = false;
       this.setGuide([]);
       this.emit({ guide: "idle" });
@@ -325,9 +321,9 @@ export class LiveLocation {
   }
 
   private async refreshGuide() {
-    if (!this.track.has || !this.wanted || this.tl.coords.length < 2) return;
+    if (!this.has || !this.wanted || this.tl.coords.length < 2) return;
     const me: LngLat = [this.shown[0], this.shown[1]];
-    const target: LngLat = [this.near.lng, this.near.lat];
+    const target = lngLatAt(this.tl, this.snap.atM, [0, 0]);
     this.guideAt[0] = me[0];
     this.guideAt[1] = me[1];
     this.guideTime = performance.now();

@@ -109,6 +109,15 @@ export default function Controls({
             {`${timeLabel(0)} / ${timeLabel(totalS)}`}
           </span>
         </div>
+        <button
+          type="button"
+          className="chip min-h-11 w-11 shrink-0 justify-center self-start px-0"
+          aria-label={PLAYER.showWhole}
+          title={PLAYER.showWhole}
+          onClick={onWhole}
+        >
+          <CornersOut size={18} weight="bold" aria-hidden="true" />
+        </button>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <div role="group" aria-label={PLAYER.speed} className="flex gap-1">
@@ -137,15 +146,6 @@ export default function Controls({
             </button>
           ))}
         </div>
-        <button
-          type="button"
-          className="chip min-h-11 w-11 justify-center px-0"
-          aria-label={PLAYER.showWhole}
-          title={PLAYER.showWhole}
-          onClick={onWhole}
-        >
-          <CornersOut size={18} weight="bold" aria-hidden="true" />
-        </button>
         {showFollow ? (
           <button type="button" className="chip min-h-11" onClick={onFollow}>
             <Crosshair size={16} weight="bold" aria-hidden="true" />

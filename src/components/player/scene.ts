@@ -137,8 +137,8 @@ export class PlayerScene {
       });
       this.resizeObs.observe(init.container);
     }
-    this.map.on("styleimagemissing", (e: { id: string }) => {
-      if (!this.map.hasImage(e.id)) this.map.addImage(e.id, { width: 1, height: 1, data: new Uint8Array(4) });
+    this.map.setMissingStyleImageResolver((id) => {
+      if (!this.map.hasImage(id)) this.map.addImage(id, { width: 1, height: 1, data: new Uint8Array(4) });
     });
     this.ready = new Promise((resolve) => {
       this.map.once("load", () => {
