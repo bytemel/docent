@@ -118,6 +118,8 @@ export class PlayerScene {
     this.map.on("pitchstart", userMove);
     init.container.querySelector<HTMLElement>(".maplibregl-ctrl-bottom-right")?.style.setProperty("bottom", "0", "important");
     this.map.on("zoom", () => this.updateLabels());
+    this.map.on("zoomend", this.declutter);
+    this.map.on("moveend", this.declutter);
     this.map.on("webglcontextrestored", () => {
       this.map.once("idle", () => {
         if (!this.destroyed) this.init.onRestore();
@@ -153,6 +155,7 @@ export class PlayerScene {
         this.addMarkers();
         this.updateLabels(true);
         this.fit(false);
+        this.declutter();
         resolve();
       });
     });
@@ -375,6 +378,35 @@ export class PlayerScene {
     if (changed) this.updateLabels(true);
   }
 
+  private hidden: boolean[] = [];
+
+  private declutterAt = 0;
+  private declutterTimer: ReturnType<typeof setTimeout> | undefined;
+
+  private declutter = () => {
+    if (this.destroyed || !this.loaded) return;
+    const now = performance.now();
+    if (now - this.declutterAt < 250) {
+      if (!this.declutterTimer) this.declutterTimer = setTimeout(() => {
+        this.declutterTimer = undefined;
+        this.declutter();
+      }, 260);
+      return;
+    }
+    this.declutterAt = now;
+    const ends = [this.tl.coords[0], this.tl.coords[this.tl.coords.length - 1]].filter(Boolean);
+    const pts = ends.map((c) => this.map.project(c));
+    const pins = this.init.pins;
+    for (let i = 0; i < pins.length; i++) {
+      const p = this.map.project(pins[i].lngLat);
+      const hide = pts.some((q) => Math.abs(q.x - p.x) < 40 && Math.abs(q.y - p.y) < 40);
+      if (hide !== this.hidden[i]) {
+        this.hidden[i] = hide;
+        pins[i].el.dataset.clash = hide ? "true" : "false";
+      }
+    }
+  };
+
   private labelsZoomed: boolean | null = null;
 
   private updateLabels(force = false) {
@@ -448,6 +480,7 @@ export class PlayerScene {
     this.tierToken++;
     this.resizeObs?.disconnect();
     this.resizeObs = null;
+    clearTimeout(this.declutterTimer);
     this.loc?.destroy();
     this.loc = null;
     try {

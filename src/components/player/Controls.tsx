@@ -17,21 +17,23 @@ export function Segmented<T extends string | number>({
   options,
   value,
   onChange,
+  className = "",
 }: {
   label: string;
   options: { id: T; label: string }[];
   value: T;
   onChange: (v: T) => void;
+  className?: string;
 }) {
   return (
-    <div role="group" aria-label={label} className="inline-flex rounded-[14px] border-[1.5px] border-line bg-surface p-[3px]">
+    <div role="group" aria-label={label} className={`flex rounded-[14px] border-[1.5px] border-line bg-surface p-[3px] ${className}`}>
       {options.map((o) => (
         <button
           key={o.id}
           type="button"
           aria-pressed={value === o.id}
           onClick={() => onChange(o.id)}
-          className="min-h-[38px] min-w-11 rounded-[11px] px-3 text-sm font-bold text-ink-2 transition-colors aria-pressed:bg-sign aria-pressed:text-sign-ink"
+          className="min-h-11 min-w-11 flex-1 rounded-[11px] px-3 text-sm font-bold text-ink-2 transition-colors aria-pressed:bg-sign aria-pressed:text-sign-ink"
         >
           {o.label}
         </button>
@@ -126,14 +128,15 @@ export default function Controls({
           </button>
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap gap-2">
         <Segmented
           label={PLAYER.animationSpeed}
           options={SPEEDS.map((v) => ({ id: v, label: `${v}x` }))}
           value={speed}
           onChange={onSpeed}
+          className="min-w-[132px] flex-[3]"
         />
-        <Segmented label={PLAYER.mapView} options={TIERS} value={tier} onChange={onTier} />
+        <Segmented label={PLAYER.mapView} options={TIERS} value={tier} onChange={onTier} className="min-w-[176px] flex-[4]" />
       </div>
     </div>
   );

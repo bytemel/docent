@@ -10,7 +10,7 @@ import { buildTimeline, safeMode } from "@/lib/timeline";
 import type { Mode, RouteDoc, Step } from "@/lib/types";
 import { PLAYER } from "@/strings/player";
 import { GlyphTile } from "./DirectionPlate";
-import { glyphFor, plateText, stepLegMeters, type Glyph } from "./glyph";
+import { glyphFor, plateText, stepGapMeters, type Glyph } from "./glyph";
 
 export function routeStats(doc: RouteDoc) {
   let distanceM = 0;
@@ -72,13 +72,13 @@ export function Summary({ doc, heading, compact = false }: { doc: RouteDoc; head
       </Title>
       {from && to && !compact ? (
         <ol className="flex flex-col gap-1.5 text-[15px]">
-          <li className="flex min-w-0 items-center gap-2.5 text-ink-2">
-            <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] bg-sign text-[11px] font-extrabold text-sign-ink">A</span>
-            <span className="min-w-0 truncate">{from}</span>
+          <li className="flex min-w-0 items-start gap-2.5 text-ink-2">
+            <span aria-hidden="true" className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] bg-sign text-[11px] font-extrabold text-sign-ink">A</span>
+            <span className="min-w-0 line-clamp-2 text-pretty">{from}</span>
           </li>
-          <li className="flex min-w-0 items-center gap-2.5 font-semibold text-ink">
-            <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] bg-accent text-[11px] font-extrabold text-accent-ink">B</span>
-            <span className="min-w-0 truncate">{to}</span>
+          <li className="flex min-w-0 items-start gap-2.5 font-semibold text-ink">
+            <span aria-hidden="true" className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] bg-accent text-[11px] font-extrabold text-accent-ink">B</span>
+            <span className="min-w-0 line-clamp-2 text-pretty">{to}</span>
           </li>
         </ol>
       ) : null}
@@ -112,7 +112,7 @@ export function useStepMeta(doc: RouteDoc) {
     const steps = Array.isArray(doc.steps) ? doc.steps : [];
     return {
       glyphs: steps.map((s) => glyphFor(s, tl)),
-      legs: steps.map((_, i) => stepLegMeters(steps, i, tl.totalM)),
+      legs: steps.map((_, i) => stepGapMeters(steps, i, tl.totalM)),
     };
   }, [doc]);
 }
@@ -152,12 +152,12 @@ export function StepList({
         const content = (
           <>
             <GlyphTile glyph={glyphs[i] ?? "straight"} size="sm" tone={on ? "accent" : "plain"} />
-            <span className={on ? "flex-1 text-[15px] font-bold leading-snug" : "flex-1 text-[15px] leading-snug text-ink"}>
+            <span className={on ? "flex-1 text-[15px] font-bold leading-snug text-pretty" : "flex-1 text-[15px] leading-snug text-ink text-pretty"}>
               {plateText(s.text)}
             </span>
             {leg ? (
-              <span className={on ? "num shrink-0 pt-0.5 text-xs font-semibold opacity-80" : "num shrink-0 pt-0.5 text-xs font-semibold text-ink-2"}>
-                {formatDistance(leg)}
+              <span className={on ? "shrink-0 pt-0.5 text-right text-xs font-semibold opacity-80" : "shrink-0 pt-0.5 text-right text-xs font-semibold text-ink-2"}>
+                {PLAYER.inDistance} <span className="num">{formatDistance(leg)}</span>
               </span>
             ) : null}
           </>
@@ -186,21 +186,23 @@ export function EndCard({
   directionsHref,
   copyHref,
   onReplay,
+  flat = false,
 }: {
   doc: RouteDoc;
   directionsHref: string | null;
   copyHref: string | null;
   onReplay: () => void;
+  flat?: boolean;
 }) {
   const gm = googleMapsUrl(doc);
   const note = doc.arrival?.note?.trim();
   return (
-    <div className="panel flex w-full max-w-sm flex-col gap-4 p-5">
+    <div className={flat ? "flex w-full flex-col gap-4" : "panel flex w-full max-w-sm flex-col gap-4 p-5"}>
       <div className="flex items-center gap-3">
         <GlyphTile glyph="arrive" size="lg" />
         <h2 className="text-[24px] font-extrabold leading-tight tracking-[-0.01em] text-ink">{PLAYER.arrivalHeading}</h2>
       </div>
-      {note ? <p className="whitespace-pre-line text-[16px] leading-relaxed text-ink">{note}</p> : null}
+      {note ? <p className="whitespace-pre-line text-[16px] leading-relaxed text-ink text-pretty">{note}</p> : null}
       <div className="flex flex-col gap-2">
         {directionsHref ? (
           <Link className="btn btn-primary btn-lg w-full" href={directionsHref}>

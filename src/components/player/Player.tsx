@@ -209,6 +209,12 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
   }, [stepIndex, stage, loc.state]);
 
   useEffect(() => {
+    if (!ended) return;
+    const scroller = rootRef.current?.querySelector<HTMLElement>("[data-scroll]");
+    scroller?.scrollTo({ top: 0 });
+  }, [ended]);
+
+  useEffect(() => {
     if (!note) return;
     const id = setTimeout(() => setNote(false), 6000);
     return () => clearTimeout(id);
@@ -384,7 +390,7 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
         {variant === "page" && !intro ? (
           <button
             type="button"
-            className="btn btn-icon absolute left-3 top-3 z-20 border-transparent shadow-float"
+            className="btn btn-icon absolute left-3 top-3 z-30 border-transparent shadow-float"
             aria-label={PLAYER.backToOverview}
             title={PLAYER.backToOverview}
             onClick={backToIntro}
@@ -436,7 +442,7 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
           </div>
         ) : null}
         {ended ? (
-          <div className="absolute inset-0 z-20 flex items-center justify-center overflow-y-auto bg-bg/70 p-4">
+          <div className="absolute inset-x-0 bottom-8 top-0 z-20 hidden items-center justify-center overflow-y-auto bg-bg/70 p-4 pl-16 lg:flex">
             <EndCard doc={doc} directionsHref={links.go} copyHref={links.copy} onReplay={() => engRef.current?.play()} />
           </div>
         ) : null}
@@ -468,7 +474,7 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
                   <Play size={20} weight="fill" aria-hidden="true" />
                   {PLAYER.watchRoute}
                 </button>
-                <p className="text-[13px] text-ink-2">{PLAYER.watchHint}</p>
+                <p className="text-[13px] text-ink-2 text-pretty">{PLAYER.watchHint}</p>
               </div>
               {livePanel}
               {stepsBlock}
@@ -478,6 +484,11 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
               <div className="hidden lg:block">
                 <Summary doc={doc} heading={variant === "page"} compact />
               </div>
+              {ended ? (
+                <div className="rounded-[18px] border-[1.5px] border-line p-4 lg:hidden">
+                  <EndCard flat doc={doc} directionsHref={links.go} copyHref={links.copy} onReplay={() => engRef.current?.play()} />
+                </div>
+              ) : null}
               <DirectionPlate
                 steps={steps}
                 index={shownStep}

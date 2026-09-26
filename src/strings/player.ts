@@ -80,6 +80,7 @@ export const PLAYER = {
   stepsHeading: "The way, step by step",
   viaModes: "By",
   googleMaps: "Google Maps",
+  inDistance: "in",
 } as const;
 
 export const GLYPH_LABEL: Record<string, string> = {
