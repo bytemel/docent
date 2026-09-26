@@ -172,3 +172,38 @@ describe("editor option stats", async () => {
     expect(stats.r1.durationS).toBeGreaterThan(stats.r0.durationS);
   });
 });
+
+describe("bounded work on long trips", () => {
+  function longLine(n: number, lat0: number, wiggle: number): LngLat[] {
+    const out: LngLat[] = [];
+    for (let i = 0; i < n; i++) {
+      const f = i / (n - 1);
+      out.push([36.8 + f * 3.1, lat0 - f * 3.0 + Math.sin(i / 40) * wiggle]);
+    }
+    return out;
+  }
+
+  it("chooses among 480 km routes in under 200 ms", () => {
+    const mainLong = cand(longLine(8000, -1.28, 0.002));
+    expect(mainLong.distanceM).toBeGreaterThan(450_000);
+    const others = [
+      cand(mainLong.geometry.filter((_, i) => i % 2 === 0).map(([x, y]) => [x, y + 0.00004] as LngLat)),
+      cand(longLine(9000, -1.2, 0.004)),
+      cand(longLine(6000, -1.36, 0.003)),
+    ];
+    const t0 = performance.now();
+    const kept = selectRoutes([mainLong, ...others]);
+    const ms = performance.now() - t0;
+    console.log(`selectRoutes 480 km with 3 candidates: ${ms.toFixed(1)} ms`);
+    expect(ms).toBeLessThan(200);
+    expect(kept.length).toBeGreaterThanOrEqual(2);
+    expect(kept).not.toContain(others[0]);
+  });
+
+  it("does not probe trips over 80 km", async () => {
+    const probe = vi.fn(async () => null);
+    const far: Candidate = cand([A, [37.6, -1.9]]);
+    await findAlternatives("car", [A, [37.6, -1.9]], [far], probe);
+    expect(probe).not.toHaveBeenCalled();
+  });
+});

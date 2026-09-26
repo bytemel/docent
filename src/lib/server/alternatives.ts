@@ -1,5 +1,5 @@
 import type { LngLat } from "@/lib/types";
-import { bearing, cumulative, haversine, nearestOnLine, pointAt } from "@/lib/geo";
+import { bearing, cumulative, haversine, lineLength, pointAt } from "@/lib/geo";
 import type { Profile } from "./parse";
 
 export interface Candidate {
@@ -57,36 +57,148 @@ export function probePoints(main: LngLat[], from: LngLat, to: LngLat, max = MAX_
   return out.slice(0, max);
 }
 
+export const MAX_SAMPLES = 400;
+export const PROBE_LIMIT_M = 80_000;
+
+export function sampleStep(totalM: number, minStepM = SAMPLE_M): number {
+  return Math.max(minStepM, totalM / MAX_SAMPLES);
+}
+
 export function sampleLine(line: LngLat[], stepM = SAMPLE_M): LngLat[] {
   if (line.length < 2) return line.slice();
-  const cum = cumulative(line);
-  const total = cum[cum.length - 1];
-  const out: LngLat[] = [];
-  for (let m = 0; m <= total; m += stepM) out.push(pointAt(line, cum, m).pos);
-  if (!out.length || haversine(out[out.length - 1], line[line.length - 1]) > 1) out.push(line[line.length - 1]);
+  const out: LngLat[] = [line[0]];
+  let carry = 0;
+  for (let i = 1; i < line.length; i++) {
+    const a = line[i - 1];
+    const b = line[i];
+    const len = haversine(a, b);
+    let at = stepM - carry;
+    while (at <= len) {
+      const t = at / len;
+      out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+      at += stepM;
+    }
+    carry = len - (at - stepM);
+  }
+  const last = line[line.length - 1];
+  if (haversine(out[out.length - 1], last) > 1) out.push(last);
   return out;
 }
 
+const KX = 111320;
+const KY = 110540;
+const CELL_M = 100;
+
+interface Grid {
+  k: number;
+  cells: Map<string, number[]>;
+  xs: Float64Array;
+  ys: Float64Array;
+}
+
+const grids = new WeakMap<LngLat[], Grid>();
+
+function gridFor(line: LngLat[]): Grid {
+  const hit = grids.get(line);
+  if (hit) return hit;
+  const lat0 = line.reduce((acc, p) => acc + p[1], 0) / line.length;
+  const k = Math.cos((lat0 * Math.PI) / 180) * KX;
+  const xs = new Float64Array(line.length);
+  const ys = new Float64Array(line.length);
+  line.forEach((p, i) => {
+    xs[i] = p[0] * k;
+    ys[i] = p[1] * KY;
+  });
+  const cells = new Map<string, number[]>();
+  for (let i = 1; i < line.length; i++) {
+    const cx0 = Math.floor(Math.min(xs[i - 1], xs[i]) / CELL_M);
+    const cx1 = Math.floor(Math.max(xs[i - 1], xs[i]) / CELL_M);
+    const cy0 = Math.floor(Math.min(ys[i - 1], ys[i]) / CELL_M);
+    const cy1 = Math.floor(Math.max(ys[i - 1], ys[i]) / CELL_M);
+    if ((cx1 - cx0 + 1) * (cy1 - cy0 + 1) > 400) {
+      const n = Math.ceil(Math.hypot(xs[i] - xs[i - 1], ys[i] - ys[i - 1]) / CELL_M) + 1;
+      for (let s = 0; s <= n; s++) {
+        const x = xs[i - 1] + ((xs[i] - xs[i - 1]) * s) / n;
+        const y = ys[i - 1] + ((ys[i] - ys[i - 1]) * s) / n;
+        const key = `${Math.floor(x / CELL_M)}:${Math.floor(y / CELL_M)}`;
+        const list = cells.get(key);
+        if (!list) cells.set(key, [i]);
+        else if (list[list.length - 1] !== i) list.push(i);
+      }
+      continue;
+    }
+    for (let cx = cx0; cx <= cx1; cx++) {
+      for (let cy = cy0; cy <= cy1; cy++) {
+        const key = `${cx}:${cy}`;
+        const list = cells.get(key);
+        if (list) list.push(i);
+        else cells.set(key, [i]);
+      }
+    }
+  }
+  const g = { k, cells, xs, ys };
+  grids.set(line, g);
+  return g;
+}
+
+function nearLine(p: LngLat, g: Grid, nearM: number): boolean {
+  const x = p[0] * g.k;
+  const y = p[1] * KY;
+  const cx = Math.floor(x / CELL_M);
+  const cy = Math.floor(y / CELL_M);
+  const r = Math.ceil(nearM / CELL_M);
+  for (let dx = -r; dx <= r; dx++) {
+    for (let dy = -r; dy <= r; dy++) {
+      const list = g.cells.get(`${cx + dx}:${cy + dy}`);
+      if (!list) continue;
+      for (const i of list) {
+        const ax = g.xs[i - 1];
+        const ay = g.ys[i - 1];
+        const vx = g.xs[i] - ax;
+        const vy = g.ys[i] - ay;
+        const len2 = vx * vx + vy * vy;
+        const t = len2 > 0 ? Math.max(0, Math.min(1, ((x - ax) * vx + (y - ay) * vy) / len2)) : 0;
+        if (Math.hypot(x - (ax + t * vx), y - (ay + t * vy)) <= nearM) return true;
+      }
+    }
+  }
+  return false;
+}
+
+const samplesCache = new WeakMap<LngLat[], { step: number; samples: LngLat[] }>();
+
+function samplesFor(line: LngLat[], minStepM: number): LngLat[] {
+  const hit = samplesCache.get(line);
+  const step = sampleStep(lineLength(line), minStepM);
+  if (hit && hit.step === step) return hit.samples;
+  const samples = sampleLine(line, step);
+  samplesCache.set(line, { step, samples });
+  return samples;
+}
+
 export function overlapRatio(a: LngLat[], b: LngLat[], stepM = SAMPLE_M, nearM = NEAR_M): number {
-  const samples = sampleLine(a, stepM);
-  if (!samples.length || b.length < 2) return 0;
-  const cumB = cumulative(b);
+  if (a.length < 2 || b.length < 2) return 0;
+  const samples = samplesFor(a, stepM);
+  if (!samples.length) return 0;
+  const g = gridFor(b);
   let near = 0;
-  for (const p of samples) if (nearestOnLine(p, b, cumB).d <= nearM) near++;
+  for (const p of samples) if (nearLine(p, g, nearM)) near++;
   return near / samples.length;
 }
 
 export function backtrackM(line: LngLat[], stepM = SAMPLE_M, nearM = NEAR_M): number {
-  const s = sampleLine(line, stepM);
-  const gap = Math.ceil((nearM * 4) / stepM);
+  if (line.length < 3) return 0;
+  const step = sampleStep(lineLength(line), stepM);
+  const s = samplesFor(line, stepM);
+  const tol = nearM + step / 2;
   let worst = 0;
-  for (let i = 0; i < s.length; i++) {
-    for (let j = s.length - 1; j > i + gap; j--) {
-      if (haversine(s[i], s[j]) <= nearM) {
-        worst = Math.max(worst, ((j - i) * stepM) / 2);
-        break;
-      }
-    }
+  for (let i = 1; i < s.length - 1; i++) {
+    const turn = Math.abs(((bearing(s[i], s[i + 1]) - bearing(s[i - 1], s[i]) + 540) % 360) - 180);
+    if (turn < 150) continue;
+    let k = 1;
+    while (i - k >= 0 && i + k < s.length && haversine(s[i - k], s[i + k]) <= tol) k++;
+    worst = Math.max(worst, (k - 1) * step + step / 2);
+    i += k - 1;
   }
   return worst;
 }
@@ -152,7 +264,7 @@ export async function findAlternatives(
 ): Promise<{ routes: RankedRoute[]; probes: number }> {
   let kept = selectRoutes(base);
   let used = 0;
-  if (kept.length && kept.length < MAX_ROUTES && points.length === 2) {
+  if (kept.length && kept.length < MAX_ROUTES && points.length === 2 && kept[0].distanceM <= PROBE_LIMIT_M) {
     const vias = probePoints(kept[0].geometry, points[0], points[1], maxProbes);
     const found: Candidate[] = [];
     for (let i = 0; i < vias.length && kept.length < MAX_ROUTES; i += 2) {
