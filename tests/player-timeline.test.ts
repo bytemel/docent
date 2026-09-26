@@ -170,4 +170,12 @@ describe("sampleTimeline", () => {
     ]);
     expect(times).toEqual([0, tl.totalS]);
   });
+
+  it("starts a mode change step when the transfer starts", () => {
+    const boundary = tl.legStartM[1];
+    const [t] = stepTimes(tl, [{ id: "m", kind: "mode", text: "", atM: boundary + 4 }]);
+    expect(t).toBeCloseTo(tl.transfers[0].t0, 6);
+    const s = sampleTimeline(tl, t + 0.01);
+    expect(s.phase).toBe("transfer");
+  });
 });

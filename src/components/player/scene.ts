@@ -40,7 +40,7 @@ const CAM = {
   "2d": { zoom: 16, pitch: 0 },
 };
 
-const ZOOM_3D: Record<Mode, number> = { walk: 17, bike: 16.7, boda: 16.5, car: 16.3, matatu: 16.3 };
+const ZOOM_3D: Record<Mode, number> = { walk: 17.1, bike: 16.9, boda: 16.8, car: 16.6, matatu: 16.5 };
 
 function angleDiff(a: number, b: number): number {
   let d = (b - a) % 360;

@@ -81,6 +81,8 @@ export class FlatRenderer implements PropRenderer {
   private has = false;
   private facingLeft = false;
   private walking = false;
+  private disc: HTMLDivElement;
+  private discMode: Mode | null = null;
 
   constructor(map: MLMap, walker: Walker) {
     this.map = map;
@@ -95,7 +97,9 @@ export class FlatRenderer implements PropRenderer {
     this.flip = document.createElement("div");
     this.flip.innerHTML = walkerSvg(walker);
     this.walk.appendChild(this.flip);
-    root.append(this.veh, this.walk);
+    this.disc = document.createElement("div");
+    this.disc.className = "dp-disc";
+    root.append(this.disc, this.veh, this.walk);
     this.marker = new Marker({ element: root, rotationAlignment: "viewport", pitchAlignment: "viewport" });
     this.marker.setLngLat([0, 0]).addTo(map);
   }
@@ -113,6 +117,11 @@ export class FlatRenderer implements PropRenderer {
     const lx = -Math.cos(r);
     const ly = -Math.sin(r);
 
+    const discMode = pose.vehicle ?? "walk";
+    if (discMode !== this.discMode) {
+      this.discMode = discMode;
+      this.disc.style.background = MODES[discMode].color;
+    }
     const want = pose.vehicle && pose.vehicleAlpha > 0.02 ? pose.vehicle : null;
     if (want !== this.shown) {
       if (this.shown) this.svgs.get(this.shown)?.classList.remove("dp-on");

@@ -14,20 +14,19 @@ const INK = "style=\"stroke:var(--ink)\"";
 
 export function walkerSvg(kind: Walker): string {
   const shirt = MODES.walk.color;
-  const hip = kind === "woman" ? 31 : 28;
+  const hip = kind === "woman" ? 35 : 32;
   const torso =
     kind === "man"
-      ? `<rect x="12" y="12" width="6" height="16" rx="2.5" fill="${shirt}"/>`
+      ? `<rect x="13.5" y="14.5" width="9" height="${hip - 13}" rx="3" fill="${shirt}"/>`
       : kind === "woman"
-        ? `<line x1="15" y1="12" x2="15" y2="22" stroke-width="3.5" ${INK}/><polygon points="15,19 8.5,32 21.5,32" fill="${shirt}"/>`
-        : `<line x1="15" y1="12" x2="15" y2="${hip}" stroke-width="3.5" ${INK}/>`;
-  return `<svg class="dp-walker-svg" viewBox="0 0 30 48" width="30" height="48" aria-hidden="true" fill="none" stroke-linecap="round">
-<g class="dp-arm-b"><line x1="15" y1="15" x2="15" y2="25" stroke-width="3" ${INK}/></g>
-<g class="dp-leg-b" style="transform-origin:15px ${hip}px"><line x1="15" y1="${hip}" x2="15" y2="44" stroke-width="3.5" ${INK}/></g>
-${torso}
-<g class="dp-leg-a" style="transform-origin:15px ${hip}px"><line x1="15" y1="${hip}" x2="15" y2="44" stroke-width="3.5" ${INK}/></g>
-<g class="dp-arm-a"><line x1="15" y1="15" x2="15" y2="25" stroke-width="3" ${INK}/></g>
-<circle cx="15" cy="7" r="5" style="fill:var(--ink)"/>
+        ? `<line x1="18" y1="15" x2="18" y2="25" stroke-width="5" ${INK}/><polygon points="18,21 9.5,37 26.5,37" fill="${shirt}"/>`
+        : `<line x1="18" y1="15" x2="18" y2="${hip}" stroke-width="5" ${INK}/>`;
+  const leg = (c: string) =>
+    `<g class="${c}" style="transform-origin:18px ${hip}px"><line x1="18" y1="${hip}" x2="18" y2="52" stroke-width="4.5" ${INK}/></g>`;
+  const arm = (c: string) => `<g class="${c}"><line x1="18" y1="17" x2="18" y2="29" stroke-width="4" ${INK}/></g>`;
+  return `<svg class="dp-walker-svg" viewBox="0 0 36 56" width="36" height="56" aria-hidden="true" fill="none" stroke-linecap="round">
+${arm("dp-arm-b")}${leg("dp-leg-b")}${torso}${leg("dp-leg-a")}${arm("dp-arm-a")}
+<circle cx="18" cy="8" r="6.5" style="fill:var(--ink)"/>
 </svg>`;
 }
 
@@ -57,10 +56,10 @@ function matatu(): string {
 
 function boda(): string {
   const c = MODES.boda.color;
-  return `<svg viewBox="0 0 22 42" width="22" height="42" aria-hidden="true">
-<rect x="9.5" y="1" width="3" height="10" rx="1.5" fill="${PROP.tyre}"/>
-<rect x="9.5" y="31" width="3" height="10" rx="1.5" fill="${PROP.tyre}"/>
-<rect x="7" y="8" width="8" height="25" rx="4" fill="${c}"/>
+  return `<svg viewBox="0 0 22 42" width="30" height="57" aria-hidden="true">
+<rect x="8.5" y="1" width="5" height="10" rx="2.5" fill="${PROP.tyre}"/>
+<rect x="8.5" y="31" width="5" height="10" rx="2.5" fill="${PROP.tyre}"/>
+<rect x="6" y="8" width="10" height="25" rx="5" fill="${c}"/>
 <line x1="3" y1="11" x2="19" y2="11" stroke="${PROP.tyre}" stroke-width="2" stroke-linecap="round"/>
 <ellipse cx="11" cy="22" rx="7" ry="4.5" fill="${PROP.rider}"/>
 <circle cx="11" cy="19.5" r="3.8" fill="${PROP.helmet}"/>
@@ -69,10 +68,10 @@ function boda(): string {
 
 function bike(): string {
   const c = MODES.bike.color;
-  return `<svg viewBox="0 0 20 42" width="20" height="42" aria-hidden="true">
-<rect x="9" y="1" width="2" height="11" rx="1" fill="${PROP.tyre}"/>
-<rect x="9" y="30" width="2" height="11" rx="1" fill="${PROP.tyre}"/>
-<rect x="8.5" y="7" width="3" height="28" rx="1.5" fill="${c}"/>
+  return `<svg viewBox="0 0 20 42" width="28" height="58" aria-hidden="true">
+<rect x="8.25" y="1" width="3.5" height="11" rx="1.75" fill="${PROP.tyre}"/>
+<rect x="8.25" y="30" width="3.5" height="11" rx="1.75" fill="${PROP.tyre}"/>
+<rect x="8" y="7" width="4" height="28" rx="2" fill="${c}"/>
 <line x1="4" y1="10" x2="16" y2="10" stroke="${PROP.tyre}" stroke-width="1.8" stroke-linecap="round"/>
 <ellipse cx="10" cy="22" rx="6.5" ry="4" fill="${c}"/>
 <circle cx="10" cy="19.5" r="3.4" fill="${PROP.helmet}"/>
@@ -92,8 +91,13 @@ export const PROP_CSS = `
 .dp-veh>svg{display:none}
 .dp-veh>svg.dp-on{display:block}
 .dp-walker-svg{display:block}
-.dp-arm-a,.dp-arm-b{transform-box:view-box;transform-origin:15px 15px}
+.dp-disc{position:absolute;left:-24px;top:-24px;width:48px;height:48px;border-radius:999px;opacity:.3}
+.dp-arm-a,.dp-arm-b{transform-box:view-box;transform-origin:18px 17px}
 .dp-leg-a,.dp-leg-b{transform-box:view-box}
+.dp-leg-a{transform:rotate(10deg)}
+.dp-leg-b{transform:rotate(-10deg)}
+.dp-arm-a{transform:rotate(-14deg)}
+.dp-arm-b{transform:rotate(14deg)}
 .dp-walking .dp-leg-a{animation:dp-swing .42s ease-in-out infinite alternate}
 .dp-walking .dp-leg-b{animation:dp-swing .42s ease-in-out infinite alternate-reverse}
 .dp-walking .dp-arm-a{animation:dp-arm .42s ease-in-out infinite alternate-reverse}

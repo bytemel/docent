@@ -339,8 +339,27 @@ export function timeAtM(tl: Timeline, meters: number): number {
   return tl.totalS;
 }
 
+const SNAP_M = 30;
+
 export function stepTimes(tl: Timeline, steps: Step[]): number[] {
-  return steps.map((s) => (s.kind === "start" ? 0 : s.kind === "arrive" ? tl.totalS : timeAtM(tl, s.atM)));
+  const snaps = tl.pieces.filter((p) => p.kind === "transfer");
+  return steps.map((s) => {
+    if (s.kind === "start") return 0;
+    if (s.kind === "arrive") return tl.totalS;
+    if (s.kind === "mode") {
+      let best = -1;
+      let bestD = SNAP_M;
+      for (let i = 0; i < snaps.length; i++) {
+        const d = Math.abs(snaps[i].m0 - s.atM);
+        if (d <= bestD) {
+          bestD = d;
+          best = i;
+        }
+      }
+      if (best >= 0) return tl.transfers[best].t0;
+    }
+    return timeAtM(tl, s.atM);
+  });
 }
 
 export function transferAt(tl: Timeline, t: number): { t0: number; t1: number } | null {

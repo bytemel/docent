@@ -96,11 +96,21 @@ export class PlaybackEngine {
       });
   }
 
+  private shownT = -1;
+  private shownSec = -1;
+
   private ui() {
-    const sc = this.o.scrub();
-    if (sc && !this.o.dragging()) sc.value = String(this.t);
-    const tlab = this.o.time();
-    if (tlab) tlab.textContent = `${timeLabel(this.t)} / ${timeLabel(this.o.tl.totalS)}`;
+    if (Math.abs(this.t - this.shownT) >= 0.05) {
+      this.shownT = this.t;
+      const sc = this.o.scrub();
+      if (sc && !this.o.dragging()) sc.value = this.t.toFixed(2);
+    }
+    const sec = Math.round(this.t);
+    if (sec !== this.shownSec) {
+      this.shownSec = sec;
+      const tlab = this.o.time();
+      if (tlab) tlab.textContent = `${timeLabel(this.t)} / ${timeLabel(this.o.tl.totalS)}`;
+    }
     const times = this.o.times;
     let idx = 0;
     for (let i = 0; i < times.length; i++) if (times[i] <= this.t + 0.05) idx = i;

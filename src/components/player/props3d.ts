@@ -29,11 +29,11 @@ export interface WalkerRig {
 export interface Props3D {
   walker: WalkerRig;
   vehicles: Record<Vehicle, Group>;
-  shadow: Mesh;
+  shadow: Mesh<CircleGeometry, MeshBasicMaterial>;
   dispose(): void;
 }
 
-export const SCALE = { walker: 11, car: 7, matatu: 6.5, boda: 10, bike: 10 };
+export const SCALE = { walker: 11.5, car: 9, matatu: 7.5, boda: 12, bike: 12 };
 
 class Kit {
   geos: BufferGeometry[] = [];
@@ -163,7 +163,8 @@ function buildMatatu(kit: Kit): Group {
   return g;
 }
 
-function buildTwoWheeler(kit: Kit, mode: "boda" | "bike"): Group {
+function buildTwoWheeler(kit: Kit, mode: "boda" | "bike", dark: boolean): Group {
+  const rider = dark ? "#d4d4d8" : PROP.rider;
   const c = MODES[mode].color;
   const g = new Group();
   const r = mode === "boda" ? 0.32 : 0.34;
@@ -179,7 +180,7 @@ function buildTwoWheeler(kit: Kit, mode: "boda" | "bike"): Group {
     g.add(kit.box(0.34, 0.36, 1.2, c, 0, 0.6, 0));
     g.add(kit.box(0.3, 0.14, 0.7, PROP.helmet, 0, 0.84, 0.15));
     g.add(kit.box(0.8, 0.06, 0.06, PROP.tyre, 0, 1.0, -0.62));
-    g.add(buildRider(kit, PROP.rider, PROP.helmet, 0.9, 0.2));
+    g.add(buildRider(kit, rider, PROP.helmet, 0.9, 0.2));
   } else {
     g.add(kit.box(0.07, 0.07, 1.2, c, 0, 0.62, 0));
     const down = kit.box(0.07, 0.6, 0.07, c, 0, 0.55, 0.15);
@@ -198,11 +199,11 @@ export function buildProps(kind: Walker, dark: boolean): Props3D {
   const vehicles: Record<Vehicle, Group> = {
     car: buildCar(kit),
     matatu: buildMatatu(kit),
-    boda: buildTwoWheeler(kit, "boda"),
-    bike: buildTwoWheeler(kit, "bike"),
+    boda: buildTwoWheeler(kit, "boda", dark),
+    bike: buildTwoWheeler(kit, "bike", dark),
   };
   for (const k of Object.keys(vehicles) as Vehicle[]) vehicles[k].scale.setScalar(SCALE[k]);
-  const shadowMat = new MeshBasicMaterial({ color: "#000000", transparent: true, opacity: 0.22, depthWrite: false });
+  const shadowMat = new MeshBasicMaterial({ color: MODES.walk.color, transparent: true, opacity: 0.35, depthWrite: false });
   kit.mats.push(shadowMat);
   const shadow = new Mesh(kit.geo(new CircleGeometry(1, 20)), shadowMat);
   shadow.rotation.x = -Math.PI / 2;
