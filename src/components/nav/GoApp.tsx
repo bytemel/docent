@@ -35,6 +35,7 @@ import { ACTIVITY_LABEL, NAV } from "@/strings/nav";
 import { Mark } from "@/app/r/mark";
 import type { NavMap } from "./navMap";
 import NavScreen from "./NavScreen";
+import { useCreditOffset } from "./useCreditOffset";
 import { fetchOptions, optionsTarget, planTrip, type Dest, type Trip } from "./plan";
 
 export interface GoAppProps {
@@ -128,6 +129,12 @@ export default function GoApp({ to, doc, badDoc }: GoAppProps) {
   useEffect(() => {
     if (map && here && !trip) map.setMe(here.pos, here.acc, null);
   }, [map, here, trip]);
+
+  useEffect(() => {
+    panelEl.current?.querySelector("[role=radio][aria-checked=true]")?.scrollIntoView({ block: "nearest" });
+  }, [selectedId]);
+
+  useCreditOffset(trip ? null : map, panelEl, undefined, `${optKey}|${options.length}|${Boolean(dest)}`);
 
   const planPad = useCallback((): Pad => {
     const w = window.innerWidth;
@@ -276,7 +283,7 @@ export default function GoApp({ to, doc, badDoc }: GoAppProps) {
         >
           <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-5 pb-4">
             <div className="flex items-center justify-between gap-3">
-              <Link href="/" aria-label={brand.name} className="rounded-md">
+              <Link href="/" aria-label={brand.name} className="-m-1.5 inline-flex size-11 items-center justify-center rounded-md">
                 <Mark className="size-8" />
               </Link>
               <VoiceToggle />
@@ -286,17 +293,23 @@ export default function GoApp({ to, doc, badDoc }: GoAppProps) {
                 <h1 className="text-[28px] leading-[1.05] font-extrabold tracking-[-0.02em] text-balance">
                   {doc.title.trim() || NAV.sharedRoute}
                 </h1>
-                <p className="mt-2 text-[15px] text-ink-2">
+                <p className="mt-2 text-[15px] text-pretty text-ink-2">
                   {[docStart, docEnd].filter(Boolean).join(" to ")}
                   {docStart || docEnd ? ", " : ""}
                   {formatDistance(docLength)}
                 </p>
-                <p className="mt-2 text-[15px] text-ink-3">{NAV.guideToStart}</p>
+                <p className="mt-2 text-[15px] text-pretty text-ink-3">{NAV.guideToStart}</p>
               </div>
             ) : (
               <div className="mt-4">
-                <h1 className="text-[28px] leading-[1.05] font-extrabold tracking-[-0.02em]">{NAV.heading}</h1>
-                <div className="mt-3">
+                <h1
+                  className={
+                    dest ? "sr-only" : "mb-3 text-[28px] leading-[1.05] font-extrabold tracking-[-0.02em]"
+                  }
+                >
+                  {NAV.heading}
+                </h1>
+                <div>
                   {dest ? (
                     <div className="flex items-center gap-3 rounded-[14px] border-[1.5px] border-line p-3">
                       <MapPin size={22} weight="bold" aria-hidden className="shrink-0 text-ink-2" />
@@ -321,32 +334,12 @@ export default function GoApp({ to, doc, badDoc }: GoAppProps) {
                         }}
                         onPick={(p) => setDest({ lng: p.lng, lat: p.lat, label: p.label })}
                       />
-                      <p className="mt-2 text-sm text-ink-3">{NAV.orTapMap}</p>
+                      <p className="mt-2 text-sm text-pretty text-ink-3">{NAV.orTapMap}</p>
                     </>
                   )}
                 </div>
               </div>
             )}
-            <fieldset className="mt-5">
-              <legend className="text-sm font-semibold text-ink-2">{NAV.activity}</legend>
-              <div className="mt-2 grid grid-cols-4 gap-2">
-                {ACTIVITY_ORDER.map((a) => {
-                  const I = ACTIVITY_ICON[a];
-                  return (
-                    <button
-                      key={a}
-                      type="button"
-                      className="chip h-16 flex-col gap-1 px-1"
-                      aria-pressed={activity === a}
-                      onClick={() => setActivity(a)}
-                    >
-                      <I size={22} weight={activity === a ? "bold" : "regular"} aria-hidden />
-                      {ACTIVITY_LABEL[a]}
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
             {dest || doc ? (
               <div className="mt-5">
                 <h2 className="text-sm font-semibold text-ink-2">{doc ? NAV.routesTo : NAV.routes}</h2>
@@ -393,7 +386,7 @@ export default function GoApp({ to, doc, badDoc }: GoAppProps) {
                     })}
                   </div>
                 ) : (
-                  <p className="mt-2 text-sm text-ink-3" role="status">
+                  <p className="mt-2 text-sm text-pretty text-ink-3" role="status">
                     {locErr
                       ? NAV.routesNeedLocation
                       : here && doc && !target
@@ -405,6 +398,26 @@ export default function GoApp({ to, doc, badDoc }: GoAppProps) {
                 )}
               </div>
             ) : null}
+            <fieldset className="mt-5">
+              <legend className="text-sm font-semibold text-ink-2">{NAV.activity}</legend>
+              <div className="mt-2 grid grid-cols-4 gap-2">
+                {ACTIVITY_ORDER.map((a) => {
+                  const I = ACTIVITY_ICON[a];
+                  return (
+                    <button
+                      key={a}
+                      type="button"
+                      className="chip h-16 flex-col gap-1 px-1"
+                      aria-pressed={activity === a}
+                      onClick={() => setActivity(a)}
+                    >
+                      <I size={22} weight={activity === a ? "bold" : "regular"} aria-hidden />
+                      {ACTIVITY_LABEL[a]}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
           </div>
           <div className="border-t border-line px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
             <button
@@ -417,11 +430,11 @@ export default function GoApp({ to, doc, badDoc }: GoAppProps) {
               {busy === "locating" ? NAV.starting : busy === "routing" ? NAV.routing : NAV.start}
             </button>
             {error ? (
-              <p role="alert" className="mt-2 text-[15px] font-medium text-danger">
+              <p role="alert" className="mt-2 text-[15px] font-medium text-pretty text-danger">
                 {error}
               </p>
             ) : (
-              <p className="mt-2 text-sm text-ink-3">{NAV.keepAwake}</p>
+              <p className="mt-2 text-sm text-pretty text-ink-3">{NAV.keepAwake}</p>
             )}
           </div>
         </section>

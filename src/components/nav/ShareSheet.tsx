@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type Ref } from "react";
 import { Copy, WhatsappLogo, X } from "@phosphor-icons/react";
 import { startLiveShare, type LiveShare } from "@/lib/live";
 import { encodeDoc } from "@/lib/share";
@@ -12,9 +12,10 @@ interface Props {
   getDoc: () => RouteDoc;
   onShare: (s: LiveShare | null) => void;
   onClose: () => void;
+  ref?: Ref<HTMLElement>;
 }
 
-export default function ShareSheet({ share, getDoc, onShare, onClose }: Props) {
+export default function ShareSheet({ share, getDoc, onShare, onClose, ref }: Props) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -47,6 +48,7 @@ export default function ShareSheet({ share, getDoc, onShare, onClose }: Props) {
 
   return (
     <section
+      ref={ref}
       role="dialog"
       aria-label={NAV.shareLive}
       className="panel absolute inset-x-3 bottom-3 z-20 p-5 md:inset-x-auto md:left-4 md:bottom-4 md:w-[400px]"
@@ -59,7 +61,7 @@ export default function ShareSheet({ share, getDoc, onShare, onClose }: Props) {
           <X size={20} weight="bold" aria-hidden />
         </button>
       </div>
-      <p className="mt-2 text-[15px] text-ink-2">{NAV.shareHint}</p>
+      <p className="mt-2 text-[15px] text-pretty text-ink-2">{NAV.shareHint}</p>
       {share ? (
         <>
           <input className="field num mt-4 text-sm" readOnly value={share.watchUrl} aria-label={NAV.copy} onFocus={(e) => e.currentTarget.select()} />

@@ -49,7 +49,7 @@ function pinEl(): HTMLElement {
 function tagEl(o: MapOption, onSelect: ((id: string) => void) | null): HTMLElement {
   const el = document.createElement("button");
   el.type = "button";
-  el.className = `rounded-[10px] border-[1.5px] px-2 py-1 text-left text-[13px] leading-tight font-bold shadow-float ${
+  el.className = `min-h-11 min-w-11 rounded-[10px] border-[1.5px] px-2 py-1 text-left text-[13px] leading-tight font-bold shadow-float ${
     o.selected ? "border-sign bg-sign text-sign-ink" : "border-line bg-surface text-ink"
   }`;
   el.setAttribute("aria-pressed", String(o.selected));
@@ -300,6 +300,11 @@ export class NavMap {
         geometry: { type: "Polygon", coordinates: [circle(pos, Math.max(4, accM))] },
       });
     });
+  }
+
+  setCreditOffset(px: number) {
+    const el = this.map.getContainer().querySelector<HTMLElement>(".maplibregl-ctrl-bottom-right");
+    if (el) el.style.bottom = `${Math.round(px)}px`;
   }
 
   setUserMove(cb: (() => void) | null) {
