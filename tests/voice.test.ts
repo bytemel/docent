@@ -21,3 +21,33 @@ describe("voice", () => {
     expect(speakable("  Pass   Naivas  ")).toBe("Pass Naivas");
   });
 });
+
+describe("voice repeat", () => {
+  it("drops an identical line within 4 s unless forced", async () => {
+    const spoken: string[] = [];
+    class Utterance {
+      text: string;
+      voice: unknown = null;
+      lang = "";
+      rate = 1;
+      pitch = 1;
+      volume = 1;
+      constructor(text: string) {
+        this.text = text;
+      }
+    }
+    const g = globalThis as unknown as Record<string, unknown>;
+    g.SpeechSynthesisUtterance = Utterance;
+    g.localStorage = { getItem: () => null, setItem: () => {} };
+    g.window = { speechSynthesis: { getVoices: () => [], speak: (u: Utterance) => spoken.push(u.text), cancel: () => {}, resume: () => {}, paused: false } };
+    const { getVoice } = await import("@/lib/voice");
+    const voice = getVoice();
+    voice.speak("Turn left now");
+    voice.speak("Turn left now");
+    voice.speak("Turn left now", { force: true });
+    expect(spoken).toEqual(["Turn left now", "Turn left now"]);
+    delete g.window;
+    delete g.SpeechSynthesisUtterance;
+    delete g.localStorage;
+  });
+});

@@ -1,5 +1,6 @@
 export interface SpeakOptions {
   interrupt?: boolean;
+  force?: boolean;
 }
 
 export interface Voice {
@@ -91,7 +92,7 @@ function createVoice(): Voice {
       const clean = speakable(text);
       if (!clean) return;
       const now = Date.now();
-      if (clean === last && now - lastAt < 4000) return;
+      if (!opts.force && clean === last && now - lastAt < 4000) return;
       last = clean;
       lastAt = now;
       if (opts.interrupt) synth.cancel();

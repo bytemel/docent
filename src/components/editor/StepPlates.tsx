@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowBendUpLeftIcon,
   ArrowBendUpRightIcon,
@@ -70,6 +70,7 @@ interface Props {
 
 export default function StepPlates({ steps, segments, onEdit, onReset }: Props) {
   const [editing, setEditing] = useState<string | null>(null);
+  useEffect(() => () => getVoice().cancel(), []);
   if (!steps.length) return <p className="text-sm text-ink-3">{t.stepsEmpty}</p>;
   return (
     <ol className="flex flex-col gap-2">

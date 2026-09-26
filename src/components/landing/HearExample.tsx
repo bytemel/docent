@@ -11,6 +11,8 @@ export default function HearExample({ lines }: { lines: string[] }) {
   const supported = useSyncExternalStore(noop, () => getVoice().supported, () => true);
   const [playing, setPlaying] = useState(false);
 
+  useEffect(() => () => getVoice().cancel(), []);
+
   useEffect(() => {
     if (!playing) return;
     const id = window.setInterval(() => {
