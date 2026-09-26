@@ -39,10 +39,10 @@ export default function EditorMap({ handlers, onReady, ...view }: Props) {
     ctl.current?.setHandlers(handlers);
   }, [handlers]);
 
-  const { segments, pending, landmarks, draftLandmark, tool, selectedVia } = view;
+  const { segments, pending, landmarks, draftLandmark, tool, selectedVia, alts } = view;
   useEffect(() => {
-    ctl.current?.setView({ segments, pending, landmarks, draftLandmark, tool, selectedVia });
-  }, [segments, pending, landmarks, draftLandmark, tool, selectedVia]);
+    ctl.current?.setView({ segments, pending, landmarks, draftLandmark, tool, selectedVia, alts });
+  }, [segments, pending, landmarks, draftLandmark, tool, selectedVia, alts]);
 
   return (
     <div className="absolute inset-0">

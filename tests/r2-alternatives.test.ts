@@ -157,3 +157,18 @@ describe("route API with alternatives", () => {
     expect(body.routes).toBeUndefined();
   });
 });
+
+describe("editor option stats", async () => {
+  const { newSegment, optionStats, withRoute } = await import("@/components/editor/ops");
+  it("shows each option with the same distance the leg gets when picked", () => {
+    const seg = withRoute(newSegment({ lng: A[0], lat: A[1] }, { lng: B[0], lat: B[1] }, "walk", "s1"), main.geometry);
+    const list = [
+      { id: "r0", geometry: main.geometry, distanceM: main.distanceM, durationS: 3300, labels: ["shortest"] },
+      { id: "r1", geometry: north.geometry, distanceM: north.distanceM, durationS: 3700, labels: [] },
+    ];
+    const stats = optionStats(seg, list, "r0");
+    expect(stats.r0).toEqual({ distanceM: seg.distanceM, durationS: seg.durationS });
+    expect(stats.r1.distanceM).toBe(withRoute(seg, north.geometry).distanceM);
+    expect(stats.r1.durationS).toBeGreaterThan(stats.r0.durationS);
+  });
+});

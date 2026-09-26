@@ -340,3 +340,44 @@ export function isRouteDoc(v: unknown): v is RouteDoc {
     (v.title === undefined || str(v.title))
   );
 }
+
+export interface OptionLike {
+  id: string;
+  geometry: LngLat[];
+  distanceM: number;
+  durationS: number;
+  labels: string[];
+}
+
+export function optionStats(
+  seg: Segment,
+  list: OptionLike[],
+  selectedId: string | null,
+): Record<string, { distanceM: number; durationS: number }> {
+  const sel = list.find((o) => o.id === selectedId);
+  const scale = sel && sel.durationS > 0 ? seg.durationS / sel.durationS : 0;
+  const out: Record<string, { distanceM: number; durationS: number }> = {};
+  for (const o of list) {
+    const distanceM = withRoute(seg, o.geometry).distanceM;
+    const durationS = o.id === selectedId ? seg.durationS : scale ? Math.round(o.durationS * scale) : estimateSeconds(seg.mode, distanceM);
+    out[o.id] = { distanceM, durationS };
+  }
+  return out;
+}
+
+export function altAnchor(alt: LngLat[], main: LngLat[]): LngLat {
+  const cum = cumulative(alt);
+  const total = cum[cum.length - 1] ?? 0;
+  const mainCum = cumulative(main);
+  let best: LngLat = pointAt(alt, cum, total / 2).pos;
+  let far = -1;
+  for (let f = 0.15; f <= 0.851; f += 0.05) {
+    const p = pointAt(alt, cum, total * f).pos;
+    const d = main.length >= 2 ? nearestOnLine(p, main, mainCum).d : 0;
+    if (d > far + 5) {
+      far = d;
+      best = p;
+    }
+  }
+  return best;
+}

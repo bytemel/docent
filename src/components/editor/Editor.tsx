@@ -24,7 +24,10 @@ import StepPlates, { hearAll } from "./StepPlates";
 import SendStage, { SendActions } from "./SendStage";
 import AskSheet from "./AskSheet";
 import PreviewDialog from "./PreviewDialog";
-import { defaultTitle, waypoints } from "./ops";
+import { altAnchor, defaultTitle, optionStats, waypoints } from "./ops";
+import type { AltLine } from "./mapController";
+import { MODES } from "@/lib/modes";
+import { formatDistance } from "@/lib/geo";
 import { useEditor } from "./useEditor";
 import { STAGES, type Padding, type Stage } from "./types";
 import type { RouteDoc } from "@/lib/types";
@@ -98,6 +101,38 @@ export default function Editor() {
             : null;
   const lastLabel = waypoints(e.doc.segments).at(-1)?.label;
   const busy = e.doc.segments.some((s) => e.status(s) === "loading");
+  const legOptions = e.legOptions;
+  const alts = useMemo<AltLine[]>(() => {
+    if (stage !== "route" || !editing) return [];
+    const out: AltLine[] = [];
+    for (const seg of e.doc.segments) {
+      const o = legOptions[seg.id];
+      if (!o) continue;
+      const stats = optionStats(seg, o.list, o.selectedId);
+      for (const opt of o.list) {
+        if (opt.id === o.selectedId) continue;
+        const dd = stats[opt.id].distanceM - seg.distanceM;
+        const dt = Math.round((stats[opt.id].durationS - seg.durationS) / 60);
+        const tag =
+          dd < -5
+            ? opt.labels.includes("shortest")
+              ? t.tagShortest
+              : t.tagShorter(formatDistance(-dd))
+            : dt < 0
+              ? t.tagFaster(formatDistance(dd), -dt)
+              : t.tagSlower(formatDistance(Math.max(0, dd)), dt);
+        out.push({
+          segId: seg.id,
+          optId: opt.id,
+          color: MODES[seg.mode].color,
+          geometry: opt.geometry,
+          tag,
+          at: altAnchor(opt.geometry, seg.geometry),
+        });
+      }
+    }
+    return out;
+  }, [stage, editing, e.doc.segments, legOptions]);
   const snapKey = e.doc.segments.map((s) => `${s.id}:${s.mode}:${s.distanceM}:${s.geometry.length}`).join("|");
   const url = useMemo(
     () => (editing && stage === "send" ? shareUrl(e.fullDoc, window.location.origin) : ""),
@@ -218,6 +253,8 @@ export default function Editor() {
         onRetry={a.retry}
         onLabel={a.setLabel}
         onRemoveStop={a.removeStop}
+        options={legOptions}
+        onPickOption={a.pickOption}
       />
     );
   } else if (stage === "directions") {
@@ -287,6 +324,7 @@ export default function Editor() {
         draftLandmark={e.draftLandmark}
         tool={e.tool}
         selectedVia={e.selectedVia}
+        alts={alts}
         handlers={{ ...e.handlers, onStyleState: setMapLoading }}
         onReady={onReady}
       />

@@ -7,7 +7,8 @@ import { uid } from "@/lib/geo";
 import { buildSteps } from "@/lib/steps";
 import { findLandmarks } from "@/lib/landmarks";
 import { decodeDoc } from "@/lib/share";
-import { routeLeg } from "@/lib/routing";
+import { routeLeg, routeOptions, type RouteOption } from "@/lib/routing";
+import { overlapRatio } from "@/lib/server/alternatives";
 import { clearDraft, flushDraft, loadDraft, saveDraft } from "@/lib/draft";
 import { amendHistory, canRedo, canUndo, createHistory, pushHistory, redo, undo, type History } from "@/lib/history";
 import { t } from "@/strings/editor";
@@ -34,6 +35,7 @@ import {
   setMode,
   setWaypointLabel,
   splitSegment,
+  withRoute,
   waypoints,
 } from "./ops";
 import type { LegStatus } from "./RouteStage";
@@ -173,6 +175,62 @@ export function useEditor() {
       map.clear();
     };
   }, []);
+
+  const [options, setOptions] = useState<Record<string, { key: string; list: RouteOption[] }>>({});
+  const optInflight = useRef(new Map<string, { key: string; ctrl: AbortController }>());
+
+  useEffect(() => {
+    if (phase !== "edit" || stage !== "route") return;
+    const map = optInflight.current;
+    for (const seg of doc.segments) {
+      if (seg.drawn) continue;
+      const key = segKey(seg);
+      if (routed[seg.id] !== key || options[seg.id]?.key === key) continue;
+      const cur = map.get(seg.id);
+      if (cur?.key === key) continue;
+      cur?.ctrl.abort();
+      const ctrl = new AbortController();
+      map.set(seg.id, { key, ctrl });
+      routeOptions(MODES[seg.mode].profile, legPoints(seg), ctrl.signal)
+        .then((list) => {
+          if (ctrl.signal.aborted) return;
+          map.delete(seg.id);
+          setOptions((o) => ({ ...o, [seg.id]: { key, list } }));
+        })
+        .catch(() => {
+          if (ctrl.signal.aborted) return;
+          map.delete(seg.id);
+          setOptions((o) => ({ ...o, [seg.id]: { key, list: [] } }));
+        });
+    }
+  }, [doc.segments, phase, stage, routed, options]);
+
+  useEffect(() => {
+    const map = optInflight.current;
+    return () => {
+      for (const f of map.values()) f.ctrl.abort();
+      map.clear();
+    };
+  }, []);
+
+  const legOptions = useMemo(() => {
+    const out: Record<string, { list: RouteOption[]; selectedId: string | null }> = {};
+    for (const seg of doc.segments) {
+      const o = options[seg.id];
+      if (seg.drawn || !o || o.key !== segKey(seg) || o.list.length < 2) continue;
+      let best: string | null = null;
+      let score = 0.8;
+      for (const opt of o.list) {
+        const r = overlapRatio(seg.geometry, opt.geometry, 40, 15);
+        if (r > score) {
+          score = r;
+          best = opt.id;
+        }
+      }
+      out[seg.id] = { list: o.list, selectedId: best };
+    }
+    return out;
+  }, [doc.segments, options]);
 
   const allRouted = phase === "edit" && doc.segments.every((s) => status(s) !== "loading");
   const geoSig = allRouted ? doc.segments.map((s) => `${s.id}:${s.geometry.length}:${s.distanceM}`).join("|") : "";
@@ -330,6 +388,15 @@ export function useEditor() {
     else setFitTick((n) => n + 1);
   }
 
+  function pickOption(segId: string, optId: string) {
+    const opt = legOptions[segId]?.list.find((o) => o.id === optId);
+    if (!opt) return;
+    commit((d) => ({
+      ...d,
+      segments: d.segments.map((sg) => (sg.id === segId && !sg.drawn ? withRoute(sg, opt.geometry) : sg)),
+    }));
+  }
+
   const handlers = {
     onTap(p: LngLat, hit: RouteHit | null) {
       if (phase === "setup") {
@@ -392,6 +459,9 @@ export function useEditor() {
         return;
       }
       commit((d) => ({ ...d, segments: addVia(d.segments, seg.id, p) }));
+    },
+    onPickOption(segId: string, optId: string) {
+      pickOption(segId, optId);
     },
     onDrawn(segId: string, line: LngLat[]) {
       commit((d) => ({ ...d, segments: setDrawn(d.segments, segId, line) }));
@@ -498,6 +568,7 @@ export function useEditor() {
     setWalker(walker: Walker) {
       commit((d) => ({ ...d, walker }));
     },
+    pickOption,
     undo: doUndo,
     redo: doRedo,
     setStage,
@@ -522,6 +593,7 @@ export function useEditor() {
     lmLoading,
     fitTick,
     status,
+    legOptions,
     canUndo: canUndo(hist),
     canRedo: canRedo(hist),
     hasDraft: !!init.draft,
