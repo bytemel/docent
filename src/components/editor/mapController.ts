@@ -79,7 +79,7 @@ const VISUAL: Record<MarkerKind, string> = {
   stop: "size-5 rounded-full border-[5px] border-ink bg-surface shadow-float",
   via: "size-4 rounded-full border-2 border-ink bg-white shadow-float",
   draft: "size-5 rounded-full border-[3px] border-surface bg-accent shadow-float",
-  tag: "whitespace-nowrap rounded-[10px] border border-line bg-surface px-2 py-1 text-[12px] font-bold leading-none text-ink shadow-float",
+  tag: "pointer-events-none whitespace-nowrap rounded-[10px] border border-line bg-surface px-2 py-1.5 text-[12px] font-bold leading-none text-ink shadow-float",
 };
 
 export class MapController {
@@ -596,8 +596,11 @@ export class MapController {
     if (want.kind === "tag") {
       const b = document.createElement("button");
       b.type = "button";
-      b.className = VISUAL.tag;
-      b.textContent = want.label;
+      b.className = "grid min-h-11 min-w-11 cursor-pointer place-items-center px-1";
+      const inner = document.createElement("span");
+      inner.className = VISUAL.tag;
+      inner.textContent = want.label;
+      b.appendChild(inner);
       return b;
     }
     const el = document.createElement("div");
@@ -651,11 +654,13 @@ export class MapController {
       rec.want = want;
       const el = rec.marker.getElement();
       el.setAttribute("aria-label", want.label);
-      if (want.kind === "tag" && el.textContent !== want.label) el.textContent = want.label;
+      if (want.kind === "tag" && el.firstElementChild && el.firstElementChild.textContent !== want.label) {
+        el.firstElementChild.textContent = want.label;
+      }
       el.setAttribute("title", want.label);
       el.style.pointerEvents = drawing ? "none" : "";
       const inner = el.firstElementChild as HTMLElement | null;
-      if (inner) inner.style.outline = want.selected ? "3px solid var(--accent)" : "";
+      if (inner && want.kind !== "tag") inner.style.outline = want.selected ? "3px solid var(--accent)" : "";
       if (this.dragging !== want.key) {
         const cur = rec.marker.getLngLat();
         if (cur.lng !== want.pos[0] || cur.lat !== want.pos[1]) rec.marker.setLngLat(want.pos);

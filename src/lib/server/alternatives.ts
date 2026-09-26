@@ -203,6 +203,84 @@ export function backtrackM(line: LngLat[], stepM = SAMPLE_M, nearM = NEAR_M): nu
   return worst;
 }
 
+export const SPUR_WINDOW_M = 25;
+export const SPUR_DEG = 150;
+export const TURN_DEG = 45;
+
+function turnAt(line: LngLat[], cum: number[], i: number, windowM: number): number {
+  const before = pointAt(line, cum, cum[i] - windowM).pos;
+  const after = pointAt(line, cum, cum[i] + windowM).pos;
+  const v = line[i];
+  if (haversine(before, v) < 1 || haversine(v, after) < 1) return 0;
+  return Math.abs(((bearing(v, after) - bearing(before, v) + 540) % 360) - 180);
+}
+
+export function hasSpur(line: LngLat[], windowM = SPUR_WINDOW_M, maxDeg = SPUR_DEG): boolean {
+  if (line.length < 3) return false;
+  const cum = cumulative(line);
+  const total = cum[cum.length - 1];
+  for (let i = 1; i < line.length - 1; i++) {
+    if (cum[i] < windowM || total - cum[i] < windowM) continue;
+    if (turnAt(line, cum, i, windowM) > maxDeg) return true;
+  }
+  return false;
+}
+
+const SPUR_SEARCH_M = 2500;
+const SPUR_MATCH_M = 20;
+
+export function trimSpurs(c: Candidate): Candidate {
+  let g = c.geometry;
+  for (let pass = 0; pass < 6 && g.length >= 3; pass++) {
+    const cum = cumulative(g);
+    const total = cum[cum.length - 1];
+    let tip = -1;
+    for (let i = 1; i < g.length - 1; i++) {
+      if (cum[i] < SPUR_WINDOW_M || total - cum[i] < SPUR_WINDOW_M) continue;
+      if (turnAt(g, cum, i, SPUR_WINDOW_M) > SPUR_DEG) {
+        tip = i;
+        break;
+      }
+    }
+    if (tip < 0) break;
+    let cutFrom = -1;
+    let cutTo = -1;
+    for (let j = tip - 1; j >= 0 && cum[tip] - cum[j] <= SPUR_SEARCH_M; j--) {
+      let match = -1;
+      for (let l = tip + 1; l < g.length && cum[l] - cum[tip] <= SPUR_SEARCH_M; l++) {
+        if (haversine(g[j], g[l]) <= SPUR_MATCH_M) {
+          match = l;
+          break;
+        }
+      }
+      if (match < 0) {
+        if (cutFrom >= 0 && cum[cutFrom] - cum[j] > 60) break;
+        continue;
+      }
+      cutFrom = j;
+      cutTo = match;
+    }
+    if (cutFrom < 0) break;
+    g = [...g.slice(0, cutFrom + 1), ...g.slice(cutTo + 1)];
+  }
+  if (g === c.geometry) return c;
+  const distanceM = Math.round(lineLength(g));
+  const durationS = c.durationS && c.distanceM > 0 ? Math.round((c.durationS * distanceM) / c.distanceM) : undefined;
+  return { geometry: g, distanceM, durationS };
+}
+
+export function turnsPerKm(line: LngLat[]): number {
+  const total = lineLength(line);
+  if (total < 1) return 0;
+  const s = samplesFor(line, SAMPLE_M);
+  let turns = 0;
+  for (let i = 1; i < s.length - 1; i++) {
+    const turn = Math.abs(((bearing(s[i], s[i + 1]) - bearing(s[i - 1], s[i]) + 540) % 360) - 180);
+    if (turn > TURN_DEG) turns++;
+  }
+  return turns / (total / 1000);
+}
+
 export function withDuration(c: Candidate, profile: Profile): Candidate & { durationS: number } {
   const durationS =
     c.durationS !== undefined && Number.isFinite(c.durationS) && c.durationS > 0
@@ -219,7 +297,13 @@ export function acceptable(c: Candidate, kept: Candidate[], shortestM: number): 
   if (c.geometry.length < 2 || !Number.isFinite(c.distanceM)) return false;
   if (c.distanceM > shortestM * MAX_STRETCH) return false;
   if (!isDistinct(c, kept)) return false;
+  if (hasSpur(c.geometry)) return false;
   return backtrackM(c.geometry) <= MAX_BACKTRACK_M;
+}
+
+export function tidier(list: Candidate[]): Candidate[] {
+  const score = new Map(list.map((c) => [c, c.distanceM * (1 + 0.04 * Math.min(turnsPerKm(c.geometry), 25))]));
+  return list.slice().sort((a, b) => (score.get(a) ?? 0) - (score.get(b) ?? 0));
 }
 
 export function selectRoutes(base: Candidate[], probes: Candidate[] = []): Candidate[] {
@@ -227,7 +311,7 @@ export function selectRoutes(base: Candidate[], probes: Candidate[] = []): Candi
   if (!valid.length) return [];
   const shortest = Math.min(...valid.map((c) => c.distanceM));
   const kept: Candidate[] = [valid[0]];
-  for (const c of [...valid.slice(1), ...probes]) {
+  for (const c of tidier([...valid.slice(1), ...probes].map(trimSpurs))) {
     if (kept.length >= MAX_ROUTES) break;
     if (acceptable(c, kept, shortest)) kept.push(c);
   }

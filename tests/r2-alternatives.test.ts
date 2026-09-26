@@ -54,12 +54,20 @@ describe("overlap maths", () => {
 describe("choosing routes", () => {
   it("drops near duplicates and long detours", () => {
     const kept = selectRoutes([main, twin], [far, north, south]);
-    expect(kept).toEqual([main, north, south]);
+    expect(kept[0]).toBe(main);
+    expect(new Set(kept.slice(1))).toEqual(new Set([north, south]));
   });
 
-  it("drops a detour that doubles back", () => {
+  it("never keeps a detour that doubles back", async () => {
+    const { hasSpur } = await import("@/lib/server/alternatives");
     const spur = cand([A, [36.79, -1.252], [36.785, -1.24], [36.79, -1.252], [36.77, -1.252], B]);
-    expect(selectRoutes([main], [spur])).toEqual([main]);
+    const kept = selectRoutes([main], [spur]);
+    expect(kept[0]).toBe(main);
+    for (const k of kept.slice(1)) {
+      expect(hasSpur(k.geometry)).toBe(false);
+      expect(backtrackM(k.geometry)).toBeLessThanOrEqual(150);
+      expect(k.distanceM).toBeLessThan(spur.distanceM);
+    }
   });
 
   it("ranks by distance on foot and by time in a car, with labels", () => {
@@ -205,5 +213,39 @@ describe("bounded work on long trips", () => {
     const far: Candidate = cand([A, [37.6, -1.9]]);
     await findAlternatives("car", [A, [37.6, -1.9]], [far], probe);
     expect(probe).not.toHaveBeenCalled();
+  });
+});
+
+describe("spurs and tidy routes", async () => {
+  const { hasSpur, turnsPerKm, tidier } = await import("@/lib/server/alternatives");
+  it("spots a short spur and never keeps one", () => {
+    const spur = cand([A, [36.79, -1.252], [36.785, -1.252], [36.785, -1.2517], [36.785, -1.252], [36.77, -1.252], B]);
+    expect(hasSpur(spur.geometry)).toBe(true);
+    expect(hasSpur(north.geometry)).toBe(false);
+    const kept = selectRoutes([main], [spur, north]);
+    expect(kept).toHaveLength(2);
+    expect(kept.some((k) => hasSpur(k.geometry))).toBe(false);
+  });
+
+  it("prefers the option with fewer turns when distances are close", () => {
+    const zig: LngLat[] = [A];
+    for (let i = 1; i < 20; i++) zig.push([36.8 - i * 0.002, -1.252 + (i % 2 ? 0.0012 : 0)]);
+    zig.push(B);
+    const zigzag = cand(zig);
+    expect(turnsPerKm(zigzag.geometry)).toBeGreaterThan(turnsPerKm(north.geometry));
+    expect(tidier([zigzag, north])[0]).toBe(north);
+  });
+});
+
+describe("spur trimming", async () => {
+  const { trimSpurs, hasSpur } = await import("@/lib/server/alternatives");
+  it("cuts the out and back part and keeps the rest", () => {
+    const spur = cand([A, [36.79, -1.252], [36.785, -1.252], [36.785, -1.2517], [36.785, -1.252], [36.77, -1.252], B]);
+    const trimmed = trimSpurs(spur);
+    expect(hasSpur(trimmed.geometry)).toBe(false);
+    expect(trimmed.distanceM).toBeLessThan(spur.distanceM);
+    expect(trimmed.geometry[0]).toEqual(A);
+    expect(trimmed.geometry[trimmed.geometry.length - 1]).toEqual(B);
+    expect(trimSpurs(north)).toBe(north);
   });
 });

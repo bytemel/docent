@@ -137,7 +137,7 @@ export default function HereClient({ name, to }: { name: string; to: Waypoint | 
         <h1 className="text-[34px] font-extrabold leading-[1.04] tracking-[-0.02em] text-ink text-balance sm:text-[44px]">
           {t.here.headline(name)}
         </h1>
-        <p className="max-w-[40ch] text-[16px] leading-snug text-ink-2">{t.here.lead(name)}</p>
+        <p className="max-w-[40ch] text-[16px] leading-snug text-ink-2 text-pretty">{t.here.lead(name)}</p>
       </header>
       {to?.label ? (
         <p className="sign mt-5 flex items-center gap-3 p-3">
@@ -160,7 +160,7 @@ export default function HereClient({ name, to }: { name: string; to: Waypoint | 
             <NavigationArrowIcon size={24} weight="bold" aria-hidden className={status === "locating" ? "animate-pulse" : ""} />
             {status === "locating" ? t.here.locating : t.here.shareButton}
           </button>
-          <p className="flex items-start gap-2 text-sm leading-snug text-ink-2">
+          <p className="flex items-start gap-2 text-sm leading-snug text-ink-2 text-pretty">
             <ShieldCheckIcon size={18} weight="bold" aria-hidden className="mt-px shrink-0 text-ok" />
             {t.here.privacy}
           </p>
@@ -186,10 +186,10 @@ export default function HereClient({ name, to }: { name: string; to: Waypoint | 
         <section role="alert" className="mt-6 flex flex-col gap-3 rounded-[18px] border border-line bg-surface p-4">
           <h2 className="text-[20px] font-extrabold leading-tight text-ink">{t.here.deniedTitle}</h2>
           {status === "unsupported" ? (
-            <p className="text-[15px] text-ink-2">{t.here.unsupported}</p>
+            <p className="text-[15px] text-ink-2 text-pretty">{t.here.unsupported}</p>
           ) : (
             <>
-              <p className="text-[15px] text-ink-2">{t.here.denied}</p>
+              <p className="text-[15px] text-ink-2 text-pretty">{t.here.denied}</p>
               <ul className="flex flex-col gap-2 text-[14px] leading-snug text-ink-2">
                 <li className="rounded-[14px] bg-surface-2 p-3">{t.here.android}</li>
                 <li className="rounded-[14px] bg-surface-2 p-3">{t.here.iphone}</li>
@@ -224,7 +224,7 @@ export default function HereClient({ name, to }: { name: string; to: Waypoint | 
 
       {point ? (
         <section className="mt-3 flex flex-col gap-5" aria-live="polite">
-          <p className="text-sm text-ink-3">{t.here.tapToMove}</p>
+          <p className="text-sm text-ink-3 text-pretty">{t.here.tapToMove}</p>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="here-note" className="text-sm font-semibold text-ink-2">
               {t.here.noteLabel}
@@ -262,7 +262,7 @@ export default function HereClient({ name, to }: { name: string; to: Waypoint | 
                   </button>
                 ) : null}
               </div>
-              <p className="mt-2 flex items-start gap-2 text-sm leading-snug text-ink-2">
+              <p className="mt-2 flex items-start gap-2 text-sm leading-snug text-ink-2 text-pretty">
                 <ShieldCheckIcon size={18} weight="bold" aria-hidden className="mt-px shrink-0 text-ok" />
                 {t.here.privacy}
               </p>

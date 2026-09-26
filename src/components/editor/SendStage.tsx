@@ -138,7 +138,7 @@ export default function SendStage(p: Props) {
           value={p.url}
           onFocus={(e) => e.currentTarget.select()}
         />
-        {p.url.length > 6000 ? <p className="text-sm text-ink-3">{t.longLink}</p> : null}
+        {p.url.length > 6000 ? <p className="text-sm text-ink-3 text-pretty">{t.longLink}</p> : null}
       </div>
 
       <div className="flex flex-col gap-2">
@@ -177,7 +177,7 @@ export default function SendStage(p: Props) {
         </span>
         <div className="min-w-0 flex-1">
           <h3 className="text-[15px] font-bold leading-tight text-ink">{t.send.nextTrip}</h3>
-          <p className="text-sm leading-snug text-ink-2">{t.send.nextTripBody}</p>
+          <p className="text-sm leading-snug text-ink-2 text-pretty">{t.send.nextTripBody}</p>
         </div>
         <button type="button" className="btn shrink-0 px-3" onClick={p.onAsk}>
           {t.send.askCta}

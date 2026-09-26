@@ -64,7 +64,7 @@ export const t = {
   hearAll: "Hear all",
   editStep: "Edit this step",
   doneEditing: "Done",
-  stepAt: (d: string) => d,
+  stepAt: (d: string) => `at ${d}`,
   stepCount: (n: number) => (n === 1 ? "1 step" : `${n} steps`),
   landmarksHeading: "Landmarks on the way",
   arrivalHeading: "When they arrive",
