@@ -22,7 +22,7 @@ export default function PaceTable({ meters }: { meters: number }) {
               </span>
               <span className="min-w-0">
                 <span className="block font-extrabold">{row.label}</span>
-                <span className="num block text-sm text-ink-3">
+                <span className="num block whitespace-nowrap text-sm text-ink-3">
                   {pace(row.kmh)} {copy.pace}
                 </span>
               </span>

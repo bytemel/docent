@@ -19,7 +19,7 @@ export default function DirectionPlate({ now, next, label }: { now: PlateStep; n
             <span className="num text-[2.25rem] font-bold leading-none sm:text-[2.6rem]">{now.distance}</span>
             <SpeakerHigh size={24} weight="bold" className="mt-1 shrink-0 text-ink-3" aria-hidden />
           </p>
-          <p className="mt-2 text-[1.3rem] font-bold leading-snug tracking-[-0.01em] sm:text-[1.45rem]">{now.text}</p>
+          <p className="mt-2 text-[1.3rem] font-bold leading-snug tracking-[-0.01em] text-pretty sm:text-[1.45rem]">{now.text}</p>
         </div>
       </div>
       <ol className="divide-y divide-line border-t border-line bg-surface-2/60">

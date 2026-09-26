@@ -19,8 +19,8 @@ export default function Plates({ ask = true, size = "lg" }: { ask?: boolean; siz
             <ArrowRight size={28} weight="bold" className="order-3 transition-transform group-hover:translate-x-1 sm:order-none" aria-hidden />
           </span>
           <span className="order-2 min-w-0 sm:order-none">
-            <span className={`block ${title} font-black leading-[1.05] tracking-[-0.02em]`}>{landing.go.title}</span>
-            <span className="mt-1.5 block text-[0.9375rem] font-semibold opacity-80">{landing.go.body}</span>
+            <span className={`block ${title} font-black leading-[1.05] tracking-[-0.02em] text-balance`}>{landing.go.title}</span>
+            <span className="mt-1.5 block text-[0.9375rem] font-semibold text-pretty opacity-80">{landing.go.body}</span>
           </span>
         </Link>
         <Link
@@ -34,8 +34,8 @@ export default function Plates({ ask = true, size = "lg" }: { ask?: boolean; siz
             <ArrowRight size={28} weight="bold" className="order-3 transition-transform group-hover:translate-x-1 sm:order-none" aria-hidden />
           </span>
           <span className="order-2 min-w-0 sm:order-none">
-            <span className={`block ${title} font-black leading-[1.05] tracking-[-0.02em]`}>{landing.share.title}</span>
-            <span className="mt-1.5 block text-[0.9375rem] font-semibold opacity-75">{landing.share.body}</span>
+            <span className={`block ${title} font-black leading-[1.05] tracking-[-0.02em] text-balance`}>{landing.share.title}</span>
+            <span className="mt-1.5 block text-[0.9375rem] font-semibold text-pretty opacity-75">{landing.share.body}</span>
           </span>
         </Link>
       </div>
@@ -49,7 +49,7 @@ export default function Plates({ ask = true, size = "lg" }: { ask?: boolean; siz
           </span>
           <span className="min-w-0 flex-1">
             <span className="block font-bold">{landing.ask.title}</span>
-            <span className="block text-sm text-ink-3">{landing.ask.body}</span>
+            <span className="block text-sm text-pretty text-ink-3">{landing.ask.body}</span>
           </span>
           <ArrowRight size={22} weight="bold" className="shrink-0 text-ink-2 transition-transform group-hover:translate-x-1" aria-hidden />
         </Link>

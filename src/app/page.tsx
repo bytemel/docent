@@ -58,7 +58,7 @@ export default function Home() {
               <h1 className="text-[2.5rem] font-black leading-[1.02] tracking-[-0.025em] text-balance min-[400px]:text-[2.85rem] sm:text-[3.6rem] xl:text-[4.25rem]">
                 {landing.headline}
               </h1>
-              <p className="mt-4 max-w-[36ch] text-lg leading-relaxed text-ink-2 sm:text-xl">{landing.subtext}</p>
+              <p className="mt-4 max-w-[36ch] text-lg leading-relaxed text-pretty text-ink-2 sm:text-xl">{landing.subtext}</p>
             </div>
             <Plates />
             <SavedRoutes />
@@ -76,12 +76,12 @@ export default function Home() {
           <div className="grid gap-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16">
             <div>
               <H2 className="max-w-[16ch]">{landing.pin.title}</H2>
-              <p className="mt-5 max-w-[46ch] text-lg leading-relaxed text-ink-2">{landing.pin.body}</p>
+              <p className="mt-5 max-w-[46ch] text-lg leading-relaxed text-pretty text-ink-2">{landing.pin.body}</p>
             </div>
             <ul className="flex flex-col gap-7 lg:pt-3">
               {landing.pin.quotes.map((q) => (
                 <li key={q.text}>
-                  <p className="text-[1.6rem] font-extrabold leading-tight tracking-[-0.015em] sm:text-[2rem]">
+                  <p className="text-[1.6rem] font-extrabold leading-tight tracking-[-0.015em] text-balance sm:text-[2rem]">
                     <span className="text-accent-text">&ldquo;</span>
                     {q.text}
                     <span className="text-accent-text">&rdquo;</span>
@@ -97,7 +97,7 @@ export default function Home() {
           <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-16">
             <div>
               <H2 className="max-w-[15ch]">{landing.voice.title}</H2>
-              <p className="mt-5 max-w-[44ch] text-lg leading-relaxed opacity-80">{landing.voice.body}</p>
+              <p className="mt-5 max-w-[44ch] text-lg leading-relaxed text-pretty opacity-80">{landing.voice.body}</p>
               <div className="mt-8">
                 <HearExample lines={spoken} />
               </div>
@@ -115,7 +115,7 @@ export default function Home() {
           <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16">
             <div>
               <H2 className="max-w-[14ch]">{landing.move.title}</H2>
-              <p className="mt-5 max-w-[46ch] text-lg leading-relaxed text-ink-2">{landing.move.body}</p>
+              <p className="mt-5 max-w-[46ch] text-lg leading-relaxed text-pretty text-ink-2">{landing.move.body}</p>
             </div>
             <PaceTable meters={lastLegMeters} />
           </div>
@@ -135,10 +135,10 @@ export default function Home() {
             </div>
             <div>
               <H2 className="max-w-[16ch]">{landing.shareStory.title}</H2>
-              <p className="mt-5 max-w-[46ch] text-lg leading-relaxed text-ink-2">{landing.shareStory.body}</p>
+              <p className="mt-5 max-w-[46ch] text-lg leading-relaxed text-pretty text-ink-2">{landing.shareStory.body}</p>
               <ul className="mt-7 flex flex-col gap-3">
                 {landing.shareStory.points.map((p) => (
-                  <li key={p} className="flex gap-3 text-[1.0625rem] font-semibold">
+                  <li key={p} className="flex gap-3 text-[1.0625rem] font-semibold text-pretty">
                     <CheckCircle size={24} weight="fill" className="mt-px shrink-0 text-ink" aria-hidden />
                     {p}
                   </li>
@@ -160,7 +160,7 @@ export default function Home() {
 
         <Section>
           <H2 className="max-w-[16ch]">{landing.travellers.title}</H2>
-          <p className="mt-5 max-w-[52ch] text-lg leading-relaxed text-ink-2">{landing.travellers.body}</p>
+          <p className="mt-5 max-w-[52ch] text-lg leading-relaxed text-pretty text-ink-2">{landing.travellers.body}</p>
           <div className="mt-10">
             <Travellers />
           </div>
@@ -171,7 +171,7 @@ export default function Home() {
             <div>
               <H2 className="max-w-[14ch]">{landing.phones.title}</H2>
               <p className="mt-10 flex flex-wrap items-baseline gap-x-3">
-                <span className="num text-[3.5rem] font-bold leading-none tracking-[-0.04em] sm:text-[4.5rem]">
+                <span className="text-[3.5rem] font-black leading-none tracking-[-0.03em] tabular-nums sm:text-[4.5rem]">
                   {encoded.length.toLocaleString("en-GB")}
                 </span>
                 <span className="text-2xl font-extrabold">{landing.phones.charsUnit}</span>
@@ -182,7 +182,7 @@ export default function Home() {
               {landing.phones.facts.map((f) => (
                 <div key={f.title} className="border-t-[3px] border-ink pt-4">
                   <dt className="text-xl font-extrabold">{f.title}</dt>
-                  <dd className="mt-1.5 leading-relaxed text-ink-2">{f.body}</dd>
+                  <dd className="mt-1.5 leading-relaxed text-pretty text-ink-2">{f.body}</dd>
                 </div>
               ))}
             </dl>
