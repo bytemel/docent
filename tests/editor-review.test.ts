@@ -126,3 +126,25 @@ describe("route fallback", () => {
     expect(calls[1].url).toContain("routing.openstreetmap.de");
   });
 });
+
+describe("opening a reply from /here", () => {
+  const draft = doc("My unfinished route");
+  it("starts a route from their point to the destination without saving over a draft", () => {
+    const s = initialState("?from=36.75,-1.267,12&fl=At%20the%20gate&to=36.8,-1.26,Sarit", () => draft, () => null);
+    expect(s.phase).toBe("edit");
+    expect(s.saveArmed).toBe(false);
+    expect(s.doc.segments[0].from).toEqual({ lng: 36.75, lat: -1.267, label: "At the gate" });
+    expect(s.doc.segments[0].to).toEqual({ lng: 36.8, lat: -1.26, label: "Sarit" });
+    expect(s.doc.title).toBe("Directions to Sarit");
+  });
+  it("sets only the start when there is no destination", () => {
+    const s = initialState("?from=36.75,-1.267", () => null, () => null);
+    expect(s.phase).toBe("setup");
+    expect(s.pending.start).toEqual({ lng: 36.75, lat: -1.267, label: "Their location" });
+  });
+  it("flags a broken reply link", () => {
+    const s = initialState("?from=999,0", () => null, () => null);
+    expect(s.badLink).toBe(true);
+    expect(s.phase).toBe("setup");
+  });
+});

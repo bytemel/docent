@@ -71,7 +71,7 @@ export default function Sheet({ header, children, sheetRef, label, lowered }: Pr
       ref={sheetRef}
       aria-label={label}
       style={{ ["--sheet-h" as string]: height ? `${height}px` : "42dvh" }}
-      className={`panel fixed inset-x-0 bottom-0 z-20 flex h-[var(--sheet-h)] flex-col rounded-b-none lg:absolute lg:inset-x-auto lg:bottom-3 lg:left-3 lg:top-[68px] lg:h-auto lg:w-[400px] lg:rounded-b-[12px] ${
+      className={`panel fixed inset-x-0 bottom-0 z-20 flex h-[var(--sheet-h)] flex-col rounded-b-none lg:absolute lg:inset-x-auto lg:bottom-auto lg:left-3 lg:top-[68px] lg:h-auto lg:max-h-[calc(100dvh-80px)] lg:w-[400px] lg:rounded-b-[12px] ${
         dragging ? "" : "transition-[height] duration-200 ease-out"
       }`}
     >

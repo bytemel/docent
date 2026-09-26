@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { ArrowsSplitIcon, PathIcon, PlusIcon, ScribbleIcon, TrashIcon, WarningIcon } from "@phosphor-icons/react";
+import { ArrowsSplitIcon, PaperPlaneTiltIcon, PathIcon, PlusIcon, ScribbleIcon, TrashIcon, WarningIcon } from "@phosphor-icons/react";
 import type { Mode, Segment } from "@/lib/types";
 import { MODES, MODE_ORDER } from "@/lib/modes";
 import { formatDistance, formatDuration } from "@/lib/geo";
 import { t } from "@/strings/editor";
 import { waypoints } from "./ops";
+import { Progress } from "./SetupPanel";
 import type { Tool } from "./types";
 
 export type LegStatus = "loading" | "error" | "ok";
@@ -22,6 +23,7 @@ interface Props {
   onRetry(id: string): void;
   onLabel(index: number, label: string): void;
   onRemoveStop(index: number): void;
+  onAsk(): void;
 }
 
 function WaypointField({
@@ -82,6 +84,7 @@ export default function RouteTab(p: Props) {
 
   return (
     <div className="flex flex-col gap-4">
+      <Progress step={2} />
       <p className="text-sm text-ink-2" aria-live="polite">
         <span className="font-semibold text-ink">{t.total}: </span>
         {busy ? t.routing : t.distTime(formatDistance(total), formatDuration(time))}
@@ -114,6 +117,13 @@ export default function RouteTab(p: Props) {
         </div>
       ))}
       <WaypointField index={last} label={t.endLabel} value={wps[last]?.label ?? ""} onLabel={p.onLabel} />
+      <div className="flex flex-col gap-2 rounded-[12px] border border-line bg-surface-2 p-3">
+        <p className="text-sm text-ink-2">{t.askTheirLocationHint}</p>
+        <button type="button" className="btn self-start" onClick={p.onAsk}>
+          <PaperPlaneTiltIcon size={18} aria-hidden />
+          {t.askTheirLocation}
+        </button>
+      </div>
     </div>
   );
 }
