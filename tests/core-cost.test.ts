@@ -44,7 +44,7 @@ describe("hostile and long routes stay cheap", () => {
       -1.3 + Math.sin(i / 7) * 0.002 + (i % 3) * 0.00003,
     ]);
     const encoded = encodeDoc(docWith(wiggly));
-    expect(encoded.length).toBeLessThanOrEqual(LIMITS.encodedChars);
+    expect(encoded.length).toBeLessThanOrEqual(LIMITS.targetChars);
     expect(decodeDoc(encoded)).not.toBeNull();
   });
 });

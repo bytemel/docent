@@ -6,6 +6,7 @@ import type { Landmark, LandmarkKind, LngLat, Mode, RouteDoc, Segment, Step, Ste
 
 export const LIMITS = {
   encodedChars: 14000,
+  targetChars: 7000,
   jsonBytes: 400_000,
   title: 120,
   label: 80,
@@ -58,7 +59,7 @@ function fromBase64Url(s: string): Uint8Array {
 
 export function encodeDoc(doc: RouteDoc): string {
   let encoded = encodeWire(doc);
-  for (let tol = 2; encoded.length > LIMITS.encodedChars && tol <= 512; tol *= 2) {
+  for (let tol = 2; encoded.length > LIMITS.targetChars && tol <= 512; tol *= 2) {
     const t = tol;
     encoded = encodeWire({ ...doc, segments: doc.segments.map((s) => ({ ...s, geometry: simplify(s.geometry, t) })) });
   }
