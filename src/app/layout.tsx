@@ -5,13 +5,11 @@ import "./globals.css";
 const overpass = Overpass({
   variable: "--font-overpass",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800", "900"],
 });
 
 const overpassMono = Overpass_Mono({
   variable: "--font-overpass-mono",
   subsets: ["latin"],
-  weight: ["400", "600", "700"],
 });
 
 function siteUrl(): string {
