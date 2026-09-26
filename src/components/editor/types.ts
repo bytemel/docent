@@ -7,7 +7,9 @@ export type Tool =
   | { kind: "draw"; segId: string }
   | { kind: "landmark" };
 
-export type Tab = "route" | "landmarks" | "steps" | "details";
+export type Stage = "where" | "route" | "directions" | "send";
+
+export const STAGES: Stage[] = ["where", "route", "directions", "send"];
 
 export interface Pending {
   start: Waypoint | null;

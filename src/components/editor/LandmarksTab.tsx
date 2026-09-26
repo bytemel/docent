@@ -30,20 +30,20 @@ export default function LandmarksTab(p: Props) {
       ) : (
         <button
           type="button"
-          className="btn self-start aria-pressed:border-accent aria-pressed:bg-accent-soft"
+          className="btn self-start aria-pressed:border-ink aria-pressed:bg-accent-soft"
           aria-pressed={adding}
           onClick={() => p.onTool(adding ? { kind: "none" } : { kind: "landmark" })}
         >
-          <MapPinPlusIcon size={18} aria-hidden />
+          <MapPinPlusIcon size={18} weight="bold" aria-hidden />
           {t.addLandmark}
         </button>
       )}
       {host.length ? (
         <section className="flex flex-col gap-2">
-          <h3 className="text-sm font-semibold text-ink">{t.yourLandmarks}</h3>
+          <h3 className="text-[15px] font-bold text-ink">{t.yourLandmarks}</h3>
           {host.map((l) => (
-            <div key={l.id} className="flex flex-col gap-2 rounded-[12px] border border-line p-3">
-              <label htmlFor={`lm-${l.id}`} className="text-sm font-medium text-ink-2">
+            <div key={l.id} className="flex flex-col gap-2 rounded-[18px] border border-line p-3">
+              <label htmlFor={`lm-${l.id}`} className="text-sm font-semibold text-ink-2">
                 {t.landmarkLabel}
               </label>
               <div className="flex items-center gap-2">
@@ -63,7 +63,7 @@ export default function LandmarksTab(p: Props) {
                   <TrashIcon size={18} aria-hidden />
                 </button>
               </div>
-              <label htmlFor={`lmn-${l.id}`} className="text-sm font-medium text-ink-2">
+              <label htmlFor={`lmn-${l.id}`} className="text-sm font-semibold text-ink-2">
                 {t.landmarkNote}
               </label>
               <input
@@ -77,7 +77,7 @@ export default function LandmarksTab(p: Props) {
         </section>
       ) : null}
       <section className="flex flex-col gap-2">
-        <h3 className="text-sm font-semibold text-ink">{t.mapLandmarks}</h3>
+        <h3 className="text-[15px] font-bold text-ink">{t.mapLandmarks}</h3>
         {map.length === 0 ? (
           <p className="text-sm text-ink-3" aria-live="polite">
             {p.loading ? t.landmarksLoading : t.landmarksEmpty}
@@ -86,7 +86,7 @@ export default function LandmarksTab(p: Props) {
           <ul className="flex flex-col gap-3">
             {map.map((l) => (
               <li key={l.id} className="flex flex-col gap-1.5">
-                <label htmlFor={`lm-${l.id}`} className="text-sm font-medium text-ink-2">
+                <label htmlFor={`lm-${l.id}`} className="text-sm font-semibold text-ink-2">
                   {t.kinds[l.kind] ?? t.kinds.other}
                   <span className="sr-only">, {t.landmarkLabel}</span>
                 </label>
@@ -123,7 +123,7 @@ function DraftForm({ onAdd, onCancel }: { onAdd(label: string, note: string): vo
   const [error, setError] = useState(false);
   return (
     <form
-      className="flex flex-col gap-2 rounded-[12px] border border-line p-3"
+      className="flex flex-col gap-2 rounded-[18px] border border-line p-3"
       onSubmit={(e) => {
         e.preventDefault();
         if (!label.trim()) {
@@ -133,7 +133,7 @@ function DraftForm({ onAdd, onCancel }: { onAdd(label: string, note: string): vo
         onAdd(label.trim(), note.trim());
       }}
     >
-      <label htmlFor="lm-draft" className="text-sm font-medium text-ink-2">
+      <label htmlFor="lm-draft" className="text-sm font-semibold text-ink-2">
         {t.landmarkLabel}
       </label>
       <input
@@ -154,7 +154,7 @@ function DraftForm({ onAdd, onCancel }: { onAdd(label: string, note: string): vo
           {t.landmarkRequired}
         </p>
       ) : null}
-      <label htmlFor="lm-draft-note" className="text-sm font-medium text-ink-2">
+      <label htmlFor="lm-draft-note" className="text-sm font-semibold text-ink-2">
         {t.landmarkNote}
       </label>
       <input

@@ -161,7 +161,7 @@ export class MapController {
     };
   }
 
-  fit(padding: Padding) {
+  fit(padding: Padding, instant = false) {
     const coords: LngLat[] = [];
     for (const s of this.view.segments) coords.push(...(s.geometry.length ? s.geometry : [[s.from.lng, s.from.lat] as LngLat]));
     if (!this.view.segments.length) {
@@ -171,7 +171,7 @@ export class MapController {
     }
     if (!coords.length) return;
     this.map.setPadding(this.base);
-    const duration = prefersReducedMotion() ? 0 : 600;
+    const duration = instant || prefersReducedMotion() ? 0 : 600;
     const [minX, minY, maxX, maxY] = bbox(coords);
     const w = this.map.getContainer().clientWidth;
     const h = this.map.getContainer().clientHeight;
@@ -211,6 +211,118 @@ export class MapController {
       offset: [(e.left - e.right) / 2, (e.top - e.bottom) / 2],
       duration: prefersReducedMotion() ? 0 : 600,
     });
+  }
+
+  snapshot(padding: Padding): Promise<string | null> {
+    const coords = this.view.segments.flatMap((s) => s.geometry);
+    if (coords.length < 2) return Promise.resolve(null);
+    return new Promise((resolve) => {
+      let shot = false;
+      const shoot = () => {
+        if (shot || this.removed) return;
+        shot = true;
+        clearTimeout(timer);
+        this.map.once("render", () => {
+          try {
+            resolve(this.crop(coords));
+          } catch {
+            resolve(null);
+          }
+        });
+        this.map.triggerRepaint();
+      };
+      const timer = setTimeout(shoot, 4000);
+      this.fit(padding, true);
+      this.map.once("idle", shoot);
+    });
+  }
+
+  private crop(coords: LngLat[]): string | null {
+    const canvas = this.map.getCanvas();
+    const cw = canvas.clientWidth;
+    const ch = canvas.clientHeight;
+    if (!cw || !ch) return null;
+    const ratio = canvas.width / cw;
+    const pts = coords.map((c) => this.map.project(c));
+    let x0 = Math.min(...pts.map((p) => p.x));
+    let x1 = Math.max(...pts.map((p) => p.x));
+    let y0 = Math.min(...pts.map((p) => p.y));
+    let y1 = Math.max(...pts.map((p) => p.y));
+    const m = 40;
+    x0 -= m;
+    x1 += m;
+    y0 -= m;
+    y1 += m;
+    const aspect = 16 / 10;
+    let w = x1 - x0;
+    let h = y1 - y0;
+    if (w / h < aspect) {
+      const nw = h * aspect;
+      x0 -= (nw - w) / 2;
+      w = nw;
+    } else {
+      const nh = w / aspect;
+      y0 -= (nh - h) / 2;
+      h = nh;
+    }
+    if (w > cw) {
+      w = cw;
+      h = w / aspect;
+    }
+    if (h > ch) {
+      h = ch;
+      w = h * aspect;
+    }
+    x0 = Math.max(0, Math.min(cw - w, x0));
+    y0 = Math.max(0, Math.min(ch - h, y0));
+    const W = 800;
+    const H = 500;
+    const out = document.createElement("canvas");
+    out.width = W;
+    out.height = H;
+    const ctx = out.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(canvas, x0 * ratio, y0 * ratio, w * ratio, h * ratio, 0, 0, W, H);
+    const k = W / w;
+    const ink = cssVar("--ink", "#101214");
+    const surface = cssVar("--surface", "#ffffff");
+    const accent = cssVar("--accent", "#ffc61a");
+    const accentInk = cssVar("--accent-ink", "#101214");
+    const bg = cssVar("--bg", "#f3f4f1");
+    const dot = (c: LngLat, fill: string, text: string, textColor: string, r: number) => {
+      const p = this.map.project(c);
+      const x = (p.x - x0) * k;
+      const y = (p.y - y0) * k;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = surface;
+      ctx.stroke();
+      if (text) {
+        ctx.fillStyle = textColor;
+        ctx.font = `bold ${Math.round(r * 1.05)}px system-ui, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text, x, y + 1);
+      }
+    };
+    const wps = waypoints(this.view.segments);
+    wps.slice(1, -1).forEach((w2) => dot([w2.lng, w2.lat], surface, "", ink, 11));
+    wps.slice(1, -1).forEach((w2) => {
+      const p = this.map.project([w2.lng, w2.lat]);
+      ctx.beginPath();
+      ctx.arc((p.x - x0) * k, (p.y - y0) * k, 8, 0, Math.PI * 2);
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = ink;
+      ctx.stroke();
+    });
+    const a = wps[0];
+    const b = wps[wps.length - 1];
+    if (a) dot([a.lng, a.lat], ink, "A", bg, 24);
+    if (b) dot([b.lng, b.lat], accent, "B", accentInk, 24);
+    return out.toDataURL("image/jpeg", 0.86);
   }
 
   private onScheme = () => {

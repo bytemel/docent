@@ -174,7 +174,7 @@ export default function PlaceSearch({ heading, label, getCenter, onPick, onPrevi
         </h2>
       ) : null}
       <div className="flex flex-col gap-1.5">
-        <label htmlFor={`${id}-q`} className="text-sm font-medium text-ink-2">
+        <label htmlFor={`${id}-q`} className="text-sm font-semibold text-ink-2">
           {label}
         </label>
         <div className="relative">
@@ -209,7 +209,7 @@ export default function PlaceSearch({ heading, label, getCenter, onPick, onPrevi
         {status === "error" && message ? <span className="text-danger">{message}</span> : null}
       </div>
       {results.length > 0 && status !== "idle" ? (
-        <ul id={`${id}-list`} className="flex flex-col overflow-hidden rounded-[12px] border border-line">
+        <ul id={`${id}-list`} className="flex flex-col overflow-hidden rounded-[14px] border-[1.5px] border-line">
           {results.map((r, i) => (
             <li key={`${r.lng},${r.lat},${i}`} className="border-line [&+&]:border-t">
               <button
@@ -218,12 +218,12 @@ export default function PlaceSearch({ heading, label, getCenter, onPick, onPrevi
                 onClick={() => pick(r)}
               >
                 {r.pinned ? (
-                  <PushPinIcon size={18} aria-hidden className="mt-0.5 shrink-0 text-accent" />
+                  <PushPinIcon size={18} weight="fill" aria-hidden className="mt-0.5 shrink-0 text-accent-text" />
                 ) : (
                   <MapPinIcon size={18} aria-hidden className="mt-0.5 shrink-0 text-ink-3" />
                 )}
                 <span className="min-w-0">
-                  <span className="block truncate font-medium text-ink">{r.label}</span>
+                  <span className="block truncate font-bold text-ink">{r.label}</span>
                   {r.sub ? <span className="block truncate text-sm text-ink-3">{r.sub}</span> : null}
                 </span>
               </button>
@@ -244,7 +244,7 @@ export default function PlaceSearch({ heading, label, getCenter, onPick, onPrevi
       {showLocate ? (
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" className="btn" onClick={locate} disabled={locating}>
-            <CrosshairIcon size={18} aria-hidden />
+            <CrosshairIcon size={18} weight="bold" aria-hidden />
             {locating ? t.locating : t.useLocation}
           </button>
           <span className="text-sm text-ink-3">{t.orTapMap}</span>
