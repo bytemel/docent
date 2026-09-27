@@ -14,13 +14,19 @@ export default function SavedRoutes() {
   if (!list.length) return null;
   return (
     <section className="rounded-[18px] border-[1.5px] border-line bg-surface" aria-labelledby="saved-title">
-      <h2 id="saved-title" className="flex items-center gap-2 px-4 pt-4 text-[1.0625rem] font-extrabold sm:px-5">
-        <BookmarkSimple size={20} weight="fill" aria-hidden />
-        {copy.title}
-      </h2>
-      <p className="px-4 pt-1 text-sm text-ink-3 sm:px-5">{copy.body}</p>
+      <div className="flex items-center justify-between gap-2 pl-4 pr-2 pt-2 sm:pl-5">
+        <h2 id="saved-title" className="flex items-center gap-2 pt-2 text-[1.0625rem] font-extrabold">
+          <BookmarkSimple size={20} weight="fill" aria-hidden />
+          {copy.title}
+        </h2>
+        <Link href="/routes" className="btn btn-ghost min-h-11 px-3 text-sm">
+          {copy.all(list.length)}
+          <ArrowRight size={16} weight="bold" aria-hidden />
+        </Link>
+      </div>
+      <p className="px-4 pt-1 text-sm text-pretty text-ink-3 sm:px-5">{copy.body}</p>
       <ul className="mt-2 divide-y divide-line">
-        {list.map((r) => (
+        {list.slice(0, 3).map((r) => (
           <li key={r.d} className="flex items-center gap-1 pr-2">
             <Link href={`/r?d=${r.d}`} className="group flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-[14px] py-2 pl-4 sm:pl-5">
               <span className="min-w-0 flex-1">

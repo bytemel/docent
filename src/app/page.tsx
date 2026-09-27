@@ -1,6 +1,7 @@
 import { ArrowRight, CheckCircle, Play } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
-import DirectionPlate, { type PlateStep } from "@/components/landing/DirectionPlate";
+import DirectionPlate from "@/components/landing/DirectionPlate";
+import { examplePlate } from "@/components/landing/examplePlate";
 import HearExample from "@/components/landing/HearExample";
 import PaceTable from "@/components/landing/PaceTable";
 import Plates from "@/components/landing/Plates";
@@ -8,27 +9,16 @@ import RegisterOffline from "@/components/landing/RegisterOffline";
 import ResponsivePlayer from "@/components/landing/ResponsivePlayer";
 import RouteSketch from "@/components/landing/RouteSketch";
 import SavedRoutes from "@/components/landing/SavedRoutes";
-import { plainStep, stepIcon } from "@/components/landing/stepIcon";
 import Travellers from "@/components/landing/Travellers";
 import { EXAMPLE_DOC } from "@/lib/example";
-import { formatDistance, lineLength } from "@/lib/geo";
 import { encodeDoc } from "@/lib/share";
-import { brand, landing } from "@/strings/common";
-import { totalMeters } from "./r/og-params";
-import { Wordmark } from "./r/mark";
+import { landing } from "@/strings/common";
+import SiteFooter from "@/components/site/SiteFooter";
+import SiteHeader from "@/components/site/SiteHeader";
 
 const encoded = encodeDoc(EXAMPLE_DOC);
 const exampleHref = `/r?d=${encoded}`;
-const lastLeg = EXAMPLE_DOC.segments[EXAMPLE_DOC.segments.length - 1];
-const lastLegMeters = lineLength(lastLeg.geometry);
-const total = totalMeters(EXAMPLE_DOC);
-
-const walkSteps = EXAMPLE_DOC.steps.filter((s) => s.atM > total - lastLegMeters && (s.kind === "turn" || s.kind === "arrive"));
-const plate: PlateStep[] = walkSteps.slice(0, 3).map((s) => {
-  const prev = EXAMPLE_DOC.steps[EXAMPLE_DOC.steps.indexOf(s) - 1];
-  return { Icon: stepIcon(s, EXAMPLE_DOC), distance: formatDistance(s.atM - (prev?.atM ?? 0)), text: plainStep(s.text) };
-});
-const spoken = plate.map((p) => landing.voice.spoken(p.distance, p.text.charAt(0).toLowerCase() + p.text.slice(1)));
+const { plate, spoken, lastLeg, lastLegMeters, total } = examplePlate();
 
 function Section({ children, tone = "bg", id }: { children: React.ReactNode; tone?: "bg" | "surface" | "sign"; id?: string }) {
   const bg = tone === "surface" ? "bg-surface" : tone === "sign" ? "bg-sign text-sign-ink" : "";
@@ -50,10 +40,10 @@ function H2({ children, className = "" }: { children: React.ReactNode; className
 export default function Home() {
   return (
     <div className="flex flex-1 flex-col">
+      <SiteHeader />
       <main className="flex-1">
-        <section className="mx-auto grid w-full max-w-6xl gap-10 px-5 pb-16 pt-4 sm:px-8 lg:min-h-[min(100svh,900px)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center lg:gap-14 lg:pb-20">
+        <section className="mx-auto grid w-full max-w-6xl gap-10 px-5 pb-16 pt-8 sm:px-8 lg:min-h-[min(calc(100svh-4rem),840px)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center lg:gap-14 lg:pb-20">
           <div className="flex min-w-0 flex-col gap-7 lg:py-10">
-            <Wordmark />
             <div>
               <h1 className="text-[2.5rem] font-black leading-[1.02] tracking-[-0.025em] text-balance min-[400px]:text-[2.85rem] sm:text-[3.6rem] xl:text-[4.25rem]">
                 {landing.headline}
@@ -197,14 +187,7 @@ export default function Home() {
         </Section>
       </main>
 
-      <footer className="border-t border-line">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-5 py-8 text-sm text-ink-3 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-          <p>
-            © {new Date().getFullYear()} {brand.name}
-          </p>
-          <p>{brand.attribution}</p>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
