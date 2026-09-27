@@ -35,6 +35,7 @@ describe("site config", () => {
     const rule = Array.isArray(r.rules) ? r.rules[0] : r.rules;
     expect(rule.disallow).toEqual([...DISALLOWED_PATHS]);
     expect(rule.disallow).not.toContain("/r");
+    expect(rule.allow).toContain("/api/og");
     expect(String(r.sitemap)).toMatch(/\/sitemap\.xml$/);
     expect(INDEXED_PATHS).toContain("/privacy");
   });

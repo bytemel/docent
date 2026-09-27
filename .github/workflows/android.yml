@@ -51,6 +51,12 @@ jobs:
       - name: Sync the Android project
         run: npx cap sync android
 
+      - name: Keep one debug signing key across builds
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: docent-debug-keystore-v1
+
       - name: Build the debug APK
         working-directory: mobile/android
         run: |

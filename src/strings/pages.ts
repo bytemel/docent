@@ -122,7 +122,7 @@ export const appPage = {
   why: [
     { title: "Keeps going with the screen off", body: "Directions and live sharing carry on when the phone is in your pocket or the screen locks." },
     { title: "A louder, steadier voice", body: "The voice keeps talking when other apps play sound, and it does not stop when the browser sleeps." },
-    { title: "Shared links open straight in Docent", body: "Tap a route someone sent you on WhatsApp and it opens in the app, ready to play." },
+    { title: "Shared links open in Docent", body: "Tap a route someone sent you on WhatsApp and choose Open with Docent, and it opens in the app, ready to play." },
   ],
   android: {
     title: "Android",
@@ -186,7 +186,7 @@ export const privacyPage = {
       title: "What stays on your phone",
       paras: [
         "Routes you open are saved in your browser or in the app, so you can open them again and replay them without data. The route you are making is saved there too, so you do not lose it if you close the page. Your voice setting is saved the same way.",
-        "This data never leaves your phone. You can remove saved routes on the My routes page, or clear it all by clearing the site data in your browser or uninstalling the app.",
+        "Docent does not send this data to its own servers. You can remove saved routes on the My routes page, or clear it all by clearing the site data in your browser or uninstalling the app. The app turns off Android cloud backup, so this data is not copied to your Google account.",
       ],
     },
     {
@@ -206,9 +206,10 @@ export const privacyPage = {
   thirdLead: "Docent is built on a few outside services. Each one sees only what it needs to do its job.",
   third: [
     { name: "OpenFreeMap", what: "Map tiles. Your phone downloads the map for the area you are looking at, so OpenFreeMap sees your internet address and that area." },
-    { name: "Photon (Komoot) and Nominatim (OpenStreetMap)", what: "Place search. When you search, the words you type go through our server to these services. They see the search, not your internet address." },
+    { name: "Photon (Komoot) and Nominatim (OpenStreetMap)", what: "Place search and place names. When you search, the words you type go through our server to these services. When you drop a pin, or a guest sends you their location, its coordinates go the same way so the place can be named. They see the search or the coordinates, not your internet address." },
+    { name: "Google", what: "Only when you paste a Google Maps link. Our server opens that link at Google to find the place it points to. Google sees the link, not your internet address." },
     { name: "Routing by FOSSGIS (routing.openstreetmap.de) or OpenRouteService", what: "Routes. They receive the start, the destination and any stops through our server, not your internet address." },
-    { name: "Vercel", what: "Hosting. Vercel runs our website and server and keeps short technical logs of requests, including internet addresses and page addresses, to keep the service working and safe." },
+    { name: "Vercel", what: "Hosting. Vercel runs our website and server and keeps short technical logs of requests, including internet addresses and page addresses, to keep the service working and safe. A route link carries the route inside its address, so these short logs can include it." },
     { name: "Supabase", what: "Live sharing only. It passes live positions between phones while a trip is being shared and does not store them." },
   ],
   thirdNote: "We do not use advertising or tracking cookies, and we do not sell or rent data to anyone.",
