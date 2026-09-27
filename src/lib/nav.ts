@@ -38,6 +38,7 @@ export const ACTIVITIES: Record<Activity, ActivityInfo> = {
 
 export const REROUTE = { afterMs: 8000, everyMs: 20000 } as const;
 const PASS_M = 5;
+const LATE_NOW_M = 40;
 const STEP_MATCH_M = 25;
 
 export type Arrow =
@@ -364,7 +365,7 @@ export function dueAnnouncements(route: NavRoute, prevAtM: number, atM: number, 
       }
     }
     const nowAt = m.atM - info.atTurnM;
-    if (crossed(nowAt) && atM - m.atM < info.atTurnM) out.push({ key: `${i}:now`, text: m.now, triggerM: nowAt });
+    if (crossed(nowAt) && atM - m.atM <= LATE_NOW_M) out.push({ key: `${i}:now`, text: m.now, triggerM: nowAt });
     const nxt = list.slice(i + 1).find((n) => n.kind !== "depart");
     if (!nxt || m.kind === "arrive") return;
     const gap = nxt.atM - m.atM;
