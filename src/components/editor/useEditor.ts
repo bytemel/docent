@@ -40,7 +40,7 @@ import {
 } from "./ops";
 import type { LegStatus } from "./RouteStage";
 import type { Pending, RouteHit, Stage, Tool, ViaRef } from "./types";
-import { initialState, type InitState, type Phase } from "./init";
+import { hasLinkParams, initialState, wantsAsk, type InitState, type Phase } from "./init";
 
 function routedKeys(doc: RouteDoc): Record<string, string> {
   const out: Record<string, string> = {};
@@ -48,10 +48,10 @@ function routedKeys(doc: RouteDoc): Record<string, string> {
   return out;
 }
 
-function initial(): InitState {
+function initial(search: string): InitState {
   if (typeof window === "undefined")
     return { doc: emptyDoc(), phase: "setup", draft: null, saveArmed: true, badLink: false, pending: { start: null, end: null }, ask: false };
-  return initialState(window.location.search, loadDraft, decodeDoc);
+  return initialState(search, loadDraft, decodeDoc);
 }
 
 const omit = (m: Record<string, string>, id: string) => {
@@ -60,8 +60,8 @@ const omit = (m: Record<string, string>, id: string) => {
   return n;
 };
 
-export function useEditor() {
-  const [init] = useState(initial);
+export function useEditor(search = "") {
+  const [init] = useState(() => initial(search));
   const [hist, setHist] = useState<History<RouteDoc>>(() => createHistory(init.doc));
   const [phase, setPhase] = useState<Phase>(init.phase);
   const [routed, setRouted] = useState<Record<string, string>>(() => routedKeys(init.doc));
@@ -71,6 +71,11 @@ export function useEditor() {
   const [tool, setTool] = useState<Tool>({ kind: "none" });
   const [stage, setStage] = useState<Stage>(init.phase === "edit" ? "route" : "where");
   const [asking, setAsking] = useState(init.ask);
+  const [seenSearch, setSeenSearch] = useState(search);
+  if (search !== seenSearch) {
+    setSeenSearch(search);
+    if (wantsAsk(search)) setAsking(true);
+  }
   const [selectedVia, setSelectedVia] = useState<ViaRef | null>(null);
   const [draftLandmark, setDraftLandmark] = useState<LngLat | null>(null);
   const [focusStop, setFocusStop] = useState<number | null>(null);
@@ -106,14 +111,17 @@ export function useEditor() {
   );
 
   useEffect(() => {
-    const sp = new URLSearchParams(window.location.search);
-    if (!sp.has("d") && !sp.has("from") && !sp.has("ask")) return;
-    try {
-      window.history.replaceState(null, "", window.location.pathname);
-    } catch {
-      return;
-    }
-  }, []);
+    if (!hasLinkParams(search)) return;
+    const id = window.setTimeout(() => {
+      if (!hasLinkParams(window.location.search)) return;
+      try {
+        window.history.replaceState(null, "", window.location.pathname);
+      } catch {
+        return;
+      }
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [search]);
 
   useEffect(() => {
     segsRef.current = doc.segments;
@@ -301,6 +309,7 @@ export function useEditor() {
     return () => {
       window.removeEventListener("pagehide", flush);
       document.removeEventListener("visibilitychange", onVis);
+      flushDraft();
     };
   }, []);
 
