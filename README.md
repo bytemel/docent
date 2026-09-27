@@ -98,3 +98,65 @@ To switch it on:
    built into the page at build time, so a change needs a new deploy.
 
 No SQL is needed. Realtime Broadcast works on a new project without any tables or policies.
+
+## Mobile app
+
+The Android and iOS app lives in `mobile/`. It is a Capacitor shell around the same website: the app opens
+`https://docent-drab.vercel.app`, so every web deploy updates the app too, with no app store release. The app adds what
+a browser cannot do:
+
+- **Location with the screen off.** During directions the app keeps tracking through a foreground service, with a
+  "Docent directions" notification while it runs. The web version stops when the screen locks.
+- **The phone's own voice** for spoken directions, which keeps talking with the screen off.
+- **Screen stays awake** while navigating, a light tap on each spoken turn, and the phone's share sheet for live links.
+- **Back button, status bar, splash screen**, and links to `/r`, `/go`, `/here` and `/live/...` (or `docent://...`)
+  open in the app.
+
+The website talks to these through `src/lib/native.ts`, which uses the bridge Capacitor puts in the page
+(`window.Capacitor`). In a normal browser that bridge is missing, so the site falls back to the web APIs. The web
+bundle has no Capacitor packages in it.
+
+If the phone is offline when the app starts, it shows `mobile/www/offline.html` with a Try again button.
+
+### Get the Android app
+
+GitHub Actions builds the app on every push to `main` that changes `mobile/` or the workflow, and on demand from the
+Actions tab (the "Android" workflow, then Run workflow). Nothing needs Java or the Android SDK on your computer.
+
+- **Releases:** open the repository's Releases page and pick "Docent for Android (latest build)". The APK is
+  attached as `docent-android-debug.apk`. Each build replaces the previous one.
+- **Actions:** open the latest "Android" run and download the `docent-android-debug` artifact (a zip with the APK).
+
+To install on an Android phone: download the APK on the phone and open it. The first time, Android asks you to allow
+installs from your browser or file manager. Allow it for that app only, then open the APK again. When directions start,
+allow location "while using the app" and allow notifications, so the directions notification can show.
+
+### Build it on a Mac
+
+You need JDK 21 and the Android SDK.
+
+```bash
+cd mobile
+npm ci
+npx cap sync android
+cd android && ./gradlew assembleDebug     # app/build/outputs/apk/debug/app-debug.apk
+```
+
+`npm run icons` in `mobile/` redraws the app icons and splash screens from the Docent mark.
+
+### Publish to the Play Store later
+
+1. Create a Google Play Console account (a one time fee) and an app with the id `app.docent.guide`.
+2. Make an upload keystore once and keep it safe: losing it means you cannot update the app.
+   `keytool -genkeypair -v -keystore docent-upload.jks -alias docent -keyalg RSA -keysize 2048 -validity 10000`
+3. Add four repository secrets in GitHub (Settings, Secrets and variables, Actions): `ANDROID_KEYSTORE_BASE64`
+   (the output of `base64 -i docent-upload.jks`), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and
+   `ANDROID_KEY_PASSWORD`. The workflow then also builds a signed `docent-android-release.aab`, which is the file the
+   Play Console asks for.
+4. The Play Console asks why the app uses location in the background. The answer: turn by turn directions keep
+   working with the screen off, only while directions are running.
+
+### iOS
+
+The iOS project is in `mobile/ios`. Building it needs a Mac with Xcode, and installing on phones or publishing needs
+an Apple Developer account. Open it with `npx cap open ios` from `mobile/`. It is not built in CI yet.
