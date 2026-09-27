@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Overpass, Overpass_Mono } from "next/font/google";
 import "./globals.css";
+import NativeShell from "@/components/nav/NativeShell";
 
 const overpass = Overpass({
   variable: "--font-overpass",
@@ -42,7 +43,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${overpass.variable} ${overpassMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">{children}<NativeShell /></body>
     </html>
   );
 }

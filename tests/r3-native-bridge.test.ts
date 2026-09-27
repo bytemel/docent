@@ -116,7 +116,9 @@ describe("location", () => {
   });
 
   it("falls back to the browser with high accuracy", async () => {
-    const watchPosition = vi.fn((ok: (p: unknown) => void) => {
+    const watchPosition = vi.fn((ok: (p: unknown) => void, _err?: unknown, _opts?: PositionOptions) => {
+      void _err;
+      void _opts;
       ok({ coords: { longitude: 36.8, latitude: -1.26, accuracy: 12, heading: null, speed: null }, timestamp: 5 });
       return 7;
     });

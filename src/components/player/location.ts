@@ -3,6 +3,7 @@ import { haversine } from "@/lib/geo";
 import { lngLatAt, type Timeline } from "@/lib/timeline";
 import type { LngLat } from "@/lib/types";
 import type { LiveFix } from "@/lib/live";
+import { hasPlugin, watchLocation } from "@/lib/native";
 import { createLiveFilter, FILTER, progressAlong, snapToRoute, type RouteLeg, type Snap } from "@/lib/liveFilter";
 import { stepAtMeters } from "./track";
 
@@ -58,7 +59,7 @@ export class LiveLocation {
   private tl: Timeline;
   private stepsM: number[];
   private hooks: LocationHooks;
-  private watchId: number | null = null;
+  private stopWatch: (() => void) | null = null;
   private wanted = false;
   private filter = createLiveFilter();
   private has = false;
@@ -122,7 +123,7 @@ export class LiveLocation {
 
   start() {
     if (this.wanted) return;
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
+    if (!hasPlugin("BackgroundGeolocation") && (typeof navigator === "undefined" || !navigator.geolocation)) {
       this.emit({ state: "unavailable" });
       return;
     }
@@ -157,11 +158,11 @@ export class LiveLocation {
   }
 
   private watch() {
-    if (this.watchId !== null || !navigator.geolocation) return;
-    this.watchId = navigator.geolocation.watchPosition(
-      (p) => this.onPosition(p),
+    if (this.stopWatch) return;
+    this.stopWatch = watchLocation(
+      (fix) => this.onPosition(fix),
       (err) => {
-        if (err.code === err.PERMISSION_DENIED) {
+        if (err.code === "denied") {
           this.wanted = false;
           this.clearWatch();
           this.emit({ state: "denied" });
@@ -169,27 +170,18 @@ export class LiveLocation {
           this.emit({ state: "unavailable" });
         }
       },
-      { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 },
+      { background: false },
     );
   }
 
   private clearWatch() {
-    if (this.watchId !== null) navigator.geolocation.clearWatch(this.watchId);
-    this.watchId = null;
+    this.stopWatch?.();
+    this.stopWatch = null;
     clearTimeout(this.drawTimer);
     this.pending = false;
   }
 
-  private onPosition(p: GeolocationPosition) {
-    const c = p.coords;
-    const raw: LiveFix = {
-      lng: c.longitude,
-      lat: c.latitude,
-      acc: c.accuracy,
-      heading: c.heading !== null && Number.isFinite(c.heading) ? c.heading : null,
-      speed: c.speed !== null && Number.isFinite(c.speed) ? c.speed : null,
-      t: p.timestamp || Date.now(),
-    };
+  private onPosition(raw: LiveFix) {
     if (!(raw.acc <= FILTER.maxAccM)) {
       this.weak++;
       if (!this.has && this.weak >= WEAK_AFTER) this.emit({ state: "weak" });

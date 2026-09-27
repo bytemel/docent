@@ -15,6 +15,7 @@ import {
 } from "@phosphor-icons/react";
 import { formatDistance } from "@/lib/geo";
 import { watchLive, type LiveFix, type LiveStatus } from "@/lib/live";
+import { isNativeApp, share } from "@/lib/native";
 import { createLiveFilter, FILTER, progressAlong, snapToRoute } from "@/lib/liveFilter";
 import { prefersDark } from "@/lib/map";
 import { buildTimeline } from "@/lib/timeline";
@@ -167,6 +168,7 @@ export default function LiveWatch({ id, doc, name, fake }: LiveWatchProps) {
   };
 
   const copy = async () => {
+    if (isNativeApp() && (await share({ title: doc.title.trim() || LIVE_COPY.untitled, url: window.location.href }))) return;
     try {
       await navigator.clipboard.writeText(window.location.href);
       flash(LIVE_COPY.copied);

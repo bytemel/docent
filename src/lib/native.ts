@@ -269,3 +269,28 @@ export function watchLocation(
   );
   return () => navigator.geolocation.clearWatch(watch);
 }
+
+export const APP_HOSTS = ["docent-drab.vercel.app"];
+const APP_PATH = /^\/(r|go|here|new|live\/[A-Za-z0-9_-]{1,64})?$/;
+
+export function appPath(raw: string, hosts: string[] = APP_HOSTS): string | null {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return null;
+  }
+  let path: string;
+  if (u.protocol === "docent:") path = `/${`${u.host}${u.pathname}`.replace(/^\/+/, "")}`;
+  else if (u.protocol === "https:" && hosts.includes(u.host)) path = u.pathname || "/";
+  else return null;
+  path = path.replace(/\/+$/, "") || "/";
+  return APP_PATH.test(path) ? `${path}${u.search}` : null;
+}
+
+export async function onAppUrlOpen(cb: (url: string) => void): Promise<() => void> {
+  return plugin("App").listen("appUrlOpen", (data) => {
+    const url = (data as { url?: unknown } | null)?.url;
+    if (typeof url === "string") cb(url);
+  });
+}

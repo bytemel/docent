@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type Ref } from "react";
-import { Copy, WhatsappLogo, X } from "@phosphor-icons/react";
+import { Copy, ShareNetwork, WhatsappLogo, X } from "@phosphor-icons/react";
 import { startLiveShare, type LiveShare } from "@/lib/live";
+import { isNativeApp, share as nativeShare } from "@/lib/native";
 import { encodeDoc } from "@/lib/share";
 import type { RouteDoc } from "@/lib/types";
 import { NAV } from "@/strings/nav";
@@ -18,6 +19,7 @@ interface Props {
 export default function ShareSheet({ share, getDoc, onShare, onClose, ref }: Props) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [inApp] = useState(isNativeApp);
 
   const start = async () => {
     setBusy(true);
@@ -70,15 +72,26 @@ export default function ShareSheet({ share, getDoc, onShare, onClose, ref }: Pro
               <Copy size={18} weight="bold" aria-hidden />
               {NAV.copy}
             </button>
-            <a
-              className="btn"
-              href={`https://wa.me/?text=${encodeURIComponent(share.watchUrl)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <WhatsappLogo size={18} weight="bold" aria-hidden />
-              {NAV.sendWhatsApp}
-            </a>
+            {inApp ? (
+              <button
+                type="button"
+                className="btn"
+                onClick={() => void nativeShare({ title: NAV.shareLive, text: NAV.shareText, url: share.watchUrl })}
+              >
+                <ShareNetwork size={18} weight="bold" aria-hidden />
+                {NAV.shareLink}
+              </button>
+            ) : (
+              <a
+                className="btn"
+                href={`https://wa.me/?text=${encodeURIComponent(share.watchUrl)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <WhatsappLogo size={18} weight="bold" aria-hidden />
+                {NAV.sendWhatsApp}
+              </a>
+            )}
           </div>
           <button type="button" className="btn btn-ghost mt-2 w-full text-danger" onClick={stop}>
             {NAV.shareStop}

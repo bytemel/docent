@@ -18,6 +18,7 @@ import {
   type NavState,
 } from "@/lib/nav";
 import type { LngLat, RouteDoc } from "@/lib/types";
+import { haptic, isNativeApp, keepAwake, watchLocation } from "@/lib/native";
 import { getVoice } from "@/lib/voice";
 import { NAV, SAY } from "@/strings/nav";
 import type { Follow, NavMap } from "./navMap";
@@ -63,7 +64,13 @@ function clock(s: number): string {
 }
 
 function speak(text: string | null | undefined, interrupt = false) {
-  if (text && document.visibilityState === "visible") getVoice().speak(text, { interrupt });
+  if (text && (isNativeApp() || document.visibilityState === "visible")) getVoice().speak(text, { interrupt });
+}
+
+function announce(text: string | null | undefined, interrupt = false) {
+  if (!text) return;
+  speak(text, interrupt);
+  void haptic("tick");
 }
 
 export default function NavScreen({ trip, activity, dest, doc, firstFix, map, setPadding, onEnd }: Props) {
@@ -119,8 +126,9 @@ export default function NavScreen({ trip, activity, dest, doc, firstFix, map, se
       stopped: false,
     };
     const info = ACTIVITIES[activity];
-    let watch = -1;
+    let stopWatch: () => void = () => {};
     let lock: WakeLockSentinel | null = null;
+    const native = isNativeApp();
     map.setRoute(trip.route);
     map.setDest(null);
     map.setFollow("heading");
@@ -156,9 +164,10 @@ export default function NavScreen({ trip, activity, dest, doc, firstFix, map, se
 
     const finish = () => {
       s.arrived = true;
-      navigator.geolocation.clearWatch(watch);
+      stopWatch();
       lock?.release().catch(() => {});
       lock = null;
+      if (native) void keepAwake(false);
       const share = shareRef.current;
       if (share) setTimeout(() => share.stop().catch(() => {}), 1500);
     };
@@ -194,6 +203,7 @@ export default function NavScreen({ trip, activity, dest, doc, firstFix, map, se
         const last = route.maneuvers[route.maneuvers.length - 1];
         s.announcer.update(route.totalM);
         speak(last.now, true);
+        void haptic("success");
         map.setFollow("off");
         finish();
         setArrived(true);
@@ -205,7 +215,7 @@ export default function NavScreen({ trip, activity, dest, doc, firstFix, map, se
         speak(startAnnouncement(route, activity, snap.atM), true);
       } else if (!st.offRoute) {
         s.offSince = null;
-        speak(s.announcer.update(snap.atM));
+        announce(s.announcer.update(snap.atM));
       } else if (!s.busy) {
         s.offSince ??= Date.now();
         if (rerouteDue(s.offSince, s.lastReroute, Date.now())) reroute([f.lng, f.lat], st.doneM);
@@ -214,16 +224,24 @@ export default function NavScreen({ trip, activity, dest, doc, firstFix, map, se
     };
 
     onFix(toFix(firstFix), true);
-    watch = navigator.geolocation.watchPosition(
-      (p) => onFix(toFix(p)),
+    stopWatch = watchLocation(
+      (fix) => onFix(fix),
       (err) => {
-        if (err.code === err.PERMISSION_DENIED) setDenied(true);
+        if (err.code === "denied") setDenied(true);
       },
-      { enableHighAccuracy: true, maximumAge: 1000, timeout: 30000 },
+      {
+        background: true,
+        notificationTitle: NAV.notifTitle,
+        notificationText: NAV.notifText(dest?.label || doc?.segments[doc.segments.length - 1]?.to.label || ""),
+      },
     );
 
     const acquire = () => {
       if (s.arrived) return;
+      if (native) {
+        void keepAwake(true);
+        return;
+      }
       navigator.wakeLock
         ?.request("screen")
         .then((l) => {
@@ -237,7 +255,7 @@ export default function NavScreen({ trip, activity, dest, doc, firstFix, map, se
       if (document.visibilityState === "visible") {
         acquire();
         if (!s.arrived) speak(s.announcer.current(s.atM), true);
-      } else {
+      } else if (!native) {
         getVoice().cancel();
       }
     };
@@ -246,7 +264,8 @@ export default function NavScreen({ trip, activity, dest, doc, firstFix, map, se
 
     return () => {
       s.stopped = true;
-      navigator.geolocation.clearWatch(watch);
+      stopWatch();
+      if (native) void keepAwake(false);
       document.removeEventListener("visibilitychange", onVisible);
       clearInterval(tick);
       lock?.release().catch(() => {});
