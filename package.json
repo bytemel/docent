@@ -9,7 +9,9 @@
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "next typegen && tsc --noEmit",
-    "verify": "next typegen && tsc --noEmit && eslint && vitest run --passWithNoTests && next build"
+    "verify": "next typegen && tsc --noEmit && eslint && vitest run --passWithNoTests && next build",
+    "e2e": "playwright test",
+    "e2e:report": "node scripts/demo-report.mjs"
   },
   "dependencies": {
     "@mapbox/vector-tile": "^3.0.0",
@@ -24,6 +26,7 @@
     "three": "^0.186.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.63",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^24.19.0",
     "@types/react": "^19",
