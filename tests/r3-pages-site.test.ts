@@ -43,7 +43,7 @@ describe("site config", () => {
 describe("page copy", () => {
   it("has no em or en dashes and no emoji", () => {
     for (const s of strings({ site, routesPage, guide, appPage, privacyPage })) {
-      expect(s).not.toMatch(/[–—]/);
+      expect(s).not.toMatch(/[\u2013\u2014]/);
       expect(s).not.toMatch(/\p{Emoji_Presentation}/u);
     }
   });
