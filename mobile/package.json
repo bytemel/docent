@@ -1,0 +1,29 @@
+{
+  "name": "docent-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Docent for Android and iOS: a Capacitor shell around the Docent website with native location, voice and sharing.",
+  "scripts": {
+    "icons": "node scripts/icons.mjs",
+    "sync": "cap sync",
+    "sync:android": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor-community/background-geolocation": "~1.2.26",
+    "@capacitor-community/keep-awake": "^8.0.1",
+    "@capacitor-community/text-to-speech": "^8.0.2",
+    "@capacitor/android": "~8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "~8.5.2",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "~8.5.2",
+    "@capacitor/share": "^8.0.2",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "~8.5.2",
+    "@resvg/resvg-js": "^2.6.2",
+    "typescript": "^5"
+  }
+}
