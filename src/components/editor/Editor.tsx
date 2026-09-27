@@ -34,8 +34,8 @@ import type { RouteDoc } from "@/lib/types";
 
 const SNAP: Record<Stage, number> = { where: 0.62, route: 0.42, directions: 0.72, send: 0.84 };
 
-export default function Editor() {
-  const e = useEditor();
+export default function Editor({ search = "" }: { search?: string }) {
+  const e = useEditor(search);
   const { actions: a } = e;
   const mapApi = useRef<MapApi | null>(null);
   const sheetRef = useRef<HTMLElement>(null);

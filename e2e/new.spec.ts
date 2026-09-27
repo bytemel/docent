@@ -80,6 +80,30 @@ test.describe("share a route", () => {
     await expect(page.getByRole("dialog", { name: "Ask where they are" })).toBeVisible();
   });
 
+  test("asking while the editor is already open shows the ask sheet", async ({ page }) => {
+    await page.goto("/new");
+    await expect(page.getByRole("heading", { name: "Where does the trip go?" })).toBeVisible();
+    const pushed = await page.evaluate(() => {
+      const next = (window as unknown as { next?: { router?: { push(href: string): void } } }).next;
+      if (!next?.router) return false;
+      next.router.push("/new?ask=1");
+      return true;
+    });
+    test.skip(!pushed, "The Next router is not exposed on this build");
+    await expect(page.getByRole("dialog", { name: "Ask where they are" })).toBeVisible();
+  });
+
+  test("a shared link stays loaded after the address is tidied", async ({ page }) => {
+    await page.goto("/");
+    const link = /\/r\?d=[A-Za-z0-9_-]+/.exec(await (await page.request.get("/")).text())![0];
+    await page.goto(`/new?d=${link.split("?d=")[1]}`);
+    await expect(page.getByRole("heading", { name: "Shape the route" })).toBeVisible();
+    await page.waitForTimeout(3000);
+    await expect(page).toHaveURL(/\/new$/);
+    await expect(page.getByRole("heading", { name: "Shape the route" })).toBeVisible();
+    await expect(page.locator("article").first()).toBeVisible();
+  });
+
   test("opening /new?ask=1 directly shows the ask sheet with a /here link", async ({ page }) => {
     await page.goto("/new?ask=1");
     const dialog = page.getByRole("dialog", { name: "Ask where they are" });

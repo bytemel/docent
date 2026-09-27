@@ -74,3 +74,31 @@ function baseState(
   if (draft) return { doc: emptyDoc(), phase: "resume", draft, saveArmed: true, badLink, pending: none };
   return { doc: emptyDoc(), phase: "setup", draft: null, saveArmed: true, badLink, pending: none };
 }
+
+const LINK_KEYS = ["d", "from", "fl", "to", "ask"] as const;
+const DOC_KEYS = ["d", "from", "fl", "to"] as const;
+
+export function searchFromParams(sp: Record<string, string | string[] | undefined>): string {
+  const out = new URLSearchParams();
+  for (const k of LINK_KEYS) {
+    const v = sp[k];
+    const first = Array.isArray(v) ? v[0] : v;
+    if (typeof first === "string" && first.length <= 16000) out.set(k, first);
+  }
+  const q = out.toString();
+  return q ? `?${q}` : "";
+}
+
+export function editorKey(search: string): string {
+  const sp = new URLSearchParams(search);
+  return DOC_KEYS.map((k) => sp.get(k) ?? "").join("|");
+}
+
+export function wantsAsk(search: string): boolean {
+  return new URLSearchParams(search).get("ask") === "1";
+}
+
+export function hasLinkParams(search: string): boolean {
+  const sp = new URLSearchParams(search);
+  return LINK_KEYS.some((k) => sp.has(k));
+}
