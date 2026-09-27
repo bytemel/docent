@@ -13,16 +13,4 @@ export function siteUrl(env: Record<string, string | undefined> = process.env): 
   return "http://localhost:3000";
 }
 
-interface CapacitorLike {
-  isNativePlatform?: () => boolean;
-}
-
-export function isNativeApp(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    const cap = (window as unknown as { Capacitor?: CapacitorLike }).Capacitor;
-    return Boolean(cap?.isNativePlatform?.());
-  } catch {
-    return false;
-  }
-}
+export { isNativeApp } from "./native";
