@@ -13,6 +13,8 @@ export interface Voice {
   subscribe(listener: (enabled: boolean) => void): () => void;
 }
 
+import { hasPlugin, isNativeApp, nativeSpeak, nativeStopSpeaking } from "./native";
+
 const STORAGE_KEY = "docent:voice";
 const LANG_ORDER = ["en-KE", "en-GB", "en-US", "en-ZA", "en-IN", "en"];
 
@@ -43,8 +45,10 @@ function readEnabled(): boolean {
 
 function createVoice(): Voice {
   const synth = typeof window !== "undefined" && "speechSynthesis" in window ? window.speechSynthesis : null;
+  const native = isNativeApp() && hasPlugin("TextToSpeech");
+  const can = native || Boolean(synth);
   const listeners = new Set<(enabled: boolean) => void>();
-  let on = synth ? readEnabled() : false;
+  let on = can ? readEnabled() : false;
   let chosen: SpeechSynthesisVoice | null = null;
   let last = "";
   let lastAt = 0;
@@ -72,35 +76,48 @@ function createVoice(): Voice {
   };
 
   return {
-    supported: Boolean(synth),
+    supported: can,
     enabled: () => on,
     setEnabled(next) {
-      on = Boolean(synth) && next;
+      on = can && next;
       try {
         localStorage.setItem(STORAGE_KEY, on ? "on" : "off");
       } catch {}
-      if (!on) synth?.cancel();
+      if (!on) {
+        synth?.cancel();
+        if (native) void nativeStopSpeaking();
+      }
       listeners.forEach((l) => l(on));
     },
     unlock() {
-      if (!synth) return;
+      if (native || !synth) return;
       refresh();
       synth.speak(utter(" ", 0));
     },
     speak(text, opts = {}) {
-      if (!synth || !on) return;
+      if (!can || !on) return;
       const clean = speakable(text);
       if (!clean) return;
       const now = Date.now();
       if (!opts.force && clean === last && now - lastAt < 4000) return;
       last = clean;
       lastAt = now;
+      if (native) {
+        void nativeSpeak(clean, { interrupt: opts.interrupt }).then((ok) => {
+          if (ok || !synth) return;
+          if (opts.interrupt) synth.cancel();
+          synth.speak(utter(clean));
+        });
+        return;
+      }
+      if (!synth) return;
       if (opts.interrupt) synth.cancel();
       if (synth.paused) synth.resume();
       synth.speak(utter(clean));
     },
     cancel() {
       synth?.cancel();
+      if (native) void nativeStopSpeaking();
     },
     subscribe(listener) {
       listeners.add(listener);
