@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { deflateSync } from "node:zlib";
 import { Resvg } from "@resvg/resvg-js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -27,6 +28,53 @@ const splash = (w, h) => {
 
 function render(svg, width) {
   return new Resvg(svg, { fitTo: { mode: "width", value: width }, background: "rgba(0,0,0,0)" }).render().asPng();
+}
+
+const CRC = Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+
+function crc32(buf) {
+  let c = 0xffffffff;
+  for (const b of buf) c = CRC[(c ^ b) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+function chunk(type, data) {
+  const len = Buffer.alloc(4);
+  len.writeUInt32BE(data.length);
+  const body = Buffer.concat([Buffer.from(type, "ascii"), data]);
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(body));
+  return Buffer.concat([len, body, crc]);
+}
+
+function renderOpaque(svg, width, background) {
+  const img = new Resvg(svg, { fitTo: { mode: "width", value: width } }).render();
+  const { width: w, height: h, pixels } = img;
+  const bg = [1, 3, 5].map((i) => parseInt(background.slice(i, i + 2), 16));
+  const raw = Buffer.alloc(h * (w * 3 + 1));
+  for (let y = 0; y < h; y++) {
+    raw[y * (w * 3 + 1)] = 0;
+    for (let x = 0; x < w; x++) {
+      const s = (y * w + x) * 4;
+      const d = y * (w * 3 + 1) + 1 + x * 3;
+      const a = pixels[s + 3] / 255;
+      for (let c = 0; c < 3; c++) raw[d + c] = Math.round(pixels[s + c] * a + bg[c] * (1 - a));
+    }
+  }
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0);
+  ihdr.writeUInt32BE(h, 4);
+  ihdr.set([8, 2, 0, 0, 0], 8);
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk("IHDR", ihdr),
+    chunk("IDAT", deflateSync(raw, { level: 9 })),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
 }
 
 function pngSize(file) {
@@ -81,7 +129,10 @@ writeFileSync(
 `,
 );
 try {
-  writeFileSync(join(ios, "AppIcon.appiconset/AppIcon-512@2x.png"), render(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="${YELLOW}"/>${glyph(INK)}</svg>`, 1024));
+  writeFileSync(
+    join(ios, "AppIcon.appiconset/AppIcon-512@2x.png"),
+    renderOpaque(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="${YELLOW}"/>${glyph(INK)}</svg>`, 1024, YELLOW),
+  );
   for (const f of ["splash-2732x2732.png", "splash-2732x2732-1.png", "splash-2732x2732-2.png"]) {
     writeFileSync(join(ios, "Splash.imageset", f), render(splash(2732, 2732), 2732));
   }

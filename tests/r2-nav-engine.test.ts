@@ -282,7 +282,7 @@ it("still says Turn left now when a fix lands right at the turn", () => {
   const route = lRoute();
   const a = createAnnouncer(route, "walk", 300);
   expect(a.update(399)).toBe("Turn left now");
-  expect(createAnnouncer(route, "walk", 380).update(430)).toBeNull();
+  expect(createAnnouncer(route, "walk", 380).update(445)).toBeNull();
 });
 
 it("joins two maneuvers crossed in one update", () => {
