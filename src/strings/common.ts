@@ -83,6 +83,7 @@ export const saved = {
   open: "Open",
   meta: (distance: string, date: string) => `${distance}, opened ${date}`,
   remove: (title: string) => `Remove ${title} from this device`,
+  all: (n: number) => (n > 3 ? `All ${n}` : "My routes"),
 };
 
 export const viewer = {
