@@ -45,3 +45,8 @@ next-env.d.ts
 CLAUDE.local.md
 AGENTS.override.md
 .testdb/
+
+# end to end runs
+test-results/
+playwright-report/
+reports/
