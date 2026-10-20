@@ -36,7 +36,7 @@ export default function Rail({ stage, reachable, onGo }: Props) {
                     here ? "font-bold text-ink" : done ? "font-semibold text-ink-2 group-enabled:underline-offset-2 group-enabled:group-hover:underline" : "font-semibold text-ink-3"
                   }`}
                 >
-                  <span className="num mr-1 text-[11px] max-[359px]:hidden">{i + 1}</span>
+                  <span className="num mr-1 text-xs max-[359px]:hidden lg:text-[11px]">{i + 1}</span>
                   {t.stages[s].rail}
                 </span>
               </button>

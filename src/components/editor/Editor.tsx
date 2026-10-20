@@ -349,7 +349,7 @@ export default function Editor({ search = "" }: { search?: string }) {
         </div>
       ) : null}
 
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 p-2 pt-[max(0.5rem,env(safe-area-inset-top))] lg:p-3 lg:pt-[max(0.75rem,env(safe-area-inset-top))]">
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 p-2 pt-[max(0.5rem,env(safe-area-inset-top))] pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] lg:p-3 lg:pt-[max(0.75rem,env(safe-area-inset-top))]">
         <Link href="/" className="btn btn-icon pointer-events-auto shrink-0 shadow-float" aria-label={t.back} title={t.back}>
           <ArrowLeftIcon size={20} weight="bold" aria-hidden />
         </Link>

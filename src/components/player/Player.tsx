@@ -409,7 +409,7 @@ export default function Player({ doc, variant = "page", autoplay, onClose }: Pla
           </button>
         ) : null}
         {variant === "page" && mapState === "ready" && !ended && (!intro || tracking) ? (
-          <div className="absolute bottom-12 right-3 z-10 lg:bottom-9">
+          <div className="absolute bottom-20 right-3 z-10 lg:bottom-9">
             <LiveToggle
               loc={loc}
               followMe={followMe}

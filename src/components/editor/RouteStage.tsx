@@ -151,7 +151,7 @@ function OptionRows({
                 <span className="num text-sm text-ink-2">{formatDuration(stats[o.id].durationS)}</span>
                 <span className="ml-auto flex shrink-0 gap-1">
                   {o.labels.map((l) => (
-                    <span key={l} className="rounded-[8px] bg-accent px-1.5 py-1 text-[11px] font-bold leading-none text-accent-ink">
+                    <span key={l} className="rounded-[8px] bg-accent px-1.5 py-1 text-xs font-bold lg:text-[11px] leading-none text-accent-ink">
                       {t.labels[l]}
                     </span>
                   ))}

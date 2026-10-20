@@ -73,11 +73,11 @@ export function Summary({ doc, heading, compact = false }: { doc: RouteDoc; head
       {from && to && !compact ? (
         <ol className="flex flex-col gap-1.5 text-[15px]">
           <li className="flex min-w-0 items-start gap-2.5 text-ink-2">
-            <span aria-hidden="true" className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] bg-sign text-[11px] font-extrabold text-sign-ink">A</span>
+            <span aria-hidden="true" className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] bg-sign text-xs font-extrabold lg:text-[11px] text-sign-ink">A</span>
             <span className="min-w-0 line-clamp-2 text-pretty">{from}</span>
           </li>
           <li className="flex min-w-0 items-start gap-2.5 font-semibold text-ink">
-            <span aria-hidden="true" className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] bg-accent text-[11px] font-extrabold text-accent-ink">B</span>
+            <span aria-hidden="true" className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] bg-accent text-xs font-extrabold lg:text-[11px] text-accent-ink">B</span>
             <span className="min-w-0 line-clamp-2 text-pretty">{to}</span>
           </li>
         </ol>

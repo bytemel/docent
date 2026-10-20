@@ -91,7 +91,7 @@ export default function Sheet({ header, footer, children, sheetRef, label, snap,
       ref={sheetRef}
       aria-label={label}
       style={{ ["--sheet-h" as string]: height ? `${height}px` : `${Math.round(snap * 100)}dvh` }}
-      className={`panel fixed inset-x-0 bottom-0 z-20 flex h-[var(--sheet-h)] flex-col overflow-hidden rounded-b-none lg:absolute lg:inset-x-auto lg:bottom-auto lg:left-3 lg:top-[72px] lg:h-auto lg:max-h-[calc(100dvh-84px)] lg:w-[400px] lg:rounded-b-[18px] ${
+      className={`panel fixed inset-x-0 bottom-0 z-20 flex max-lg:pl-[env(safe-area-inset-left)] max-lg:pr-[env(safe-area-inset-right)] h-[var(--sheet-h)] flex-col overflow-hidden rounded-b-none lg:absolute lg:inset-x-auto lg:bottom-auto lg:left-3 lg:top-[72px] lg:h-auto lg:max-h-[calc(100dvh-84px)] lg:w-[400px] lg:rounded-b-[18px] ${
         dragging ? "" : "transition-[height] duration-200 ease-out"
       }`}
     >
